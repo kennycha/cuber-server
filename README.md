@@ -134,11 +134,12 @@
 
 ## 2.2 A word on @types
 
-## 2.3~4 GraphQL Yoha and Express
+## 2.3~4 GraphQL Yoga and Express
 
 - [graphql-yoga](https://github.com/prisma-labs/graphql-yoga)
-  - graphql 서버 개발 환경을 만들어주는, create-react-app과 유사한 역할의 패키지
-
+  
+- graphql 서버 개발 환경을 만들어주는, create-react-app과 유사한 역할의 패키지
+  
 - [middleware](https://developer.mozilla.org/en-US/docs/Glossary/Middleware)
 
   - 앱의 연결이나 요청들을 다루는 방식을 수정하는 역할
@@ -165,8 +166,9 @@
   - private
 
 - GraphQLServer
-  - 인스턴스 생성 시에 **resolvers**와 **definitions**를 option으로 포함해야 한다
-
+  
+- 인스턴스 생성 시에 **resolvers**와 **definitions**를 option으로 포함해야 한다
+  
 - appOptions
 
   - type은 graphql-yoga에서 import 한 Options
@@ -198,11 +200,204 @@
 ## 2.5~6 API and Schema Structure
 
 - graphql api
+
   - django, express api와는 달리 url을 사용하지 않는다
   - schema와 resolver를 사용
-  - `src/api/` 아래에 각 api에 해당하는 폴더들을 만들고, 내부에 schema 파일(`.graphql`)과 resolver 파일(`.resolvers.ts`)을 생성
-  - schema.ts 파일에서 import 하여 사용
+
 - packages
+
   - [graphql-tools](https://github.com/ardatan/graphql-tools)
   - [merge-graphql-schemas](https://github.com/Urigo/merge-graphql-schemas) (merged into graphql-tools)
-- 
+
+- merging types and resolvers
+
+  - `src/api/` 아래에 각 api에 해당하는 폴더들을 만들고, 내부에 schema 파일(`.graphql`)과 resolver 파일(`.resolvers.ts`)을 생성
+
+  - schema.ts 파일에서 import하여 merge 한 후 export
+
+    ```typescript
+    // schema.ts
+    import { GraphQLSchema } from "graphql";
+    import { makeExecutableSchema } from "graphql-tools";
+    import { fileLoader, mergeResolvers, mergeTypes } from "merge-graphql-schemas";
+    import path from "path";
+    
+    const allTypes: GraphQLSchema[] = fileLoader(
+      path.join(__dirname, "./api/**/*.graphql")
+    );
+    
+    const allResolvers: any[] = fileLoader(
+      path.join(__dirname, "./api/**/*.resolvers.*")
+    );
+    
+    const mergedTypes = mergeTypes(allTypes);
+    const mergedResolvers = mergeResolvers(allResolvers);
+    
+    const schema = makeExecutableSchema({
+      typeDefs: mergedTypes,
+      resolvers: mergedResolvers,
+    });
+    
+    export default schema;
+    ```
+
+    ```typescript
+    // app.ts
+    import { GraphQLServer } from "graphql-yoga";
+    import schema from "./schema";
+    
+    class App {
+      public app: GraphQLServer;
+      constructor() {
+        this.app = new GraphQLServer({
+          schema,
+        });
+      ...
+    }
+    
+    export default new App().app;
+    ```
+
+
+## 2.7 Graphql To Typescript
+
+- graphql이 응답으로 가져오는 data의 type 과 typescript의 type 설정이 같지 않을때
+
+  - 예시
+
+    ```
+    # sayHello.graphql
+    
+    type Greeting {
+      text: String!
+      error: Boolean!
+    }
+    
+    type Query {
+      sayHello: Greeting!
+    }
+    ```
+
+    ```typescript
+    // sayHello.resolvers.ts
+    
+    const resolvers = {
+      Query: {
+        sayHello: () => "Hey hello how are ya",
+      },
+    };
+    
+    export default resolvers;
+    ```
+
+    - graphql에 따르면, sayHello 쿼리는 String과 Boolean을 포함한 객체형의 데이터를 응답으로 받는데,
+    - resolvers 파일에서는 쿼리의 결과값이 Srting 이다
+
+  - 기본 상황에서는 Typescript가 이것을 알려주지 않는다
+    - 단지 request 에 대한 응답을 하지 않는다
+  - 이를 Typescript 가 알려주도록 만드는 것이 중요하다
+    - 내가 **return 해야 하는 것**을 아는 것은 중요하다
+
+- graphql을 types로 바꾸기
+
+  - [graphql-to-typescript](https://www.npmjs.com/package/graphql-to-typescript)
+
+  - [gql-merge](https://www.npmjs.com/package/gql-merge)
+
+  - 설치
+
+    ```bash
+    $ npm i graphql-to-typescript gql-merge --save-dev
+    ```
+
+    - src 내의 코드에 사용되지 않고, package.json에서만 사용
+
+  - package.json 의 scripts에 `types` script 추가
+
+    - 모든 graphql 파일들을 복제해서 Typescript definition으로 바꾸는 명령어
+
+      ```json
+      "scripts": {
+      	"types": "graphql-to-typescript ./src/schema.graphql ./src/types/graph.d.ts"
+      }
+      ```
+
+  - types 가 실행되기 전에 실행되는 `pretypes`도 추가
+
+    - graphql 파일들을 합쳐서 하나의 graphql 파일로 만들어 주는 명령어
+
+      ```json
+      "scripts": {
+          "pretypes": "gql-merge --out-file ./src/schema.graphql ./src/api/**/*.graphql"
+      }
+      ```
+
+  - 실행
+
+    ```bash
+    $ npm run types
+    ```
+
+    - 이때, `babel-runtime` 모듈을 필요로 한다
+
+      ```bash
+      $ npm i babel-runtime --save-dev
+      ```
+
+    - 정상적으로 동작하면, 지정한 위치에 Typescript definition 파일이 생성된다
+
+  - 결과
+
+    - src/schema.graphql
+
+      ```
+      type Query {
+        sayBye: String!
+        sayHello: Greeting!
+      }
+      
+      type Greeting {
+        text: String!
+        error: Boolean!
+      }
+      ```
+
+    - src/types/graph.d.ts
+
+      ```typescript
+      export const typeDefs = ["type Query {\n  sayBye: String!\n  sayHello: Greeting!\n}\n\ntype Greeting {\n  text: String!\n  error: Boolean!\n}\n"];
+      /* tslint:disable */
+      
+      export interface Query {
+        sayBye: string;
+        sayHello: Greeting;
+      }
+      
+      export interface Greeting {
+        text: string;
+        error: boolean;
+      }
+      ```
+
+  - 적용
+
+    - sayHello.resolvers.ts
+
+      ```typescript
+      import { Greeting } from "src/types/graph";
+      
+      const resolvers = {
+        Query: {
+          sayHello: (): Greeting => {
+            return {
+              text: "Hey hello how are ya",
+              error: false,
+            };
+          },
+        },
+      };
+      
+      export default resolvers;
+      ```
+
+      
