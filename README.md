@@ -294,8 +294,10 @@
     - resolvers 파일에서는 쿼리의 결과값이 Srting 이다
 
   - 기본 상황에서는 Typescript가 이것을 알려주지 않는다
+    
     - 단지 request 에 대한 응답을 하지 않는다
   - 이를 Typescript 가 알려주도록 만드는 것이 중요하다
+    
     - 내가 **return 해야 하는 것**을 아는 것은 중요하다
 
 - graphql을 types로 바꾸기
@@ -322,6 +324,8 @@
       }
       ```
 
+    - `graphql-to-typescript`를 사용해서, `./src/schema.graphql` 파일을 복제해, `./src/types/graph.d.ts` 라는 Typescript definition 파일로 만들어라 
+
   - types 가 실행되기 전에 실행되는 `pretypes`도 추가
 
     - graphql 파일들을 합쳐서 하나의 graphql 파일로 만들어 주는 명령어
@@ -331,6 +335,8 @@
           "pretypes": "gql-merge --out-file ./src/schema.graphql ./src/api/**/*.graphql"
       }
       ```
+
+    - `gql-merge`를 사용해서, `./src/schema.graphql` 이라는 파일을 만드는데, 이때 `./src/api/**/*.graphql` 형식의 파일들을 병합해서 만들어라
 
   - 실행
 
@@ -400,4 +406,69 @@
       export default resolvers;
       ```
 
-      
+
+## 2.8 Typechecking Graphql Arguments
+
+- query의 arguments에 대한 type 설정
+
+  - sayHello.graphql
+
+    ```
+    type SayHelloResponse {
+      text: String!
+      error: Boolean!
+    }
+    
+    type Query {
+      sayHello(name: String!): SayHelloResponse!
+    }
+    ```
+
+  - ```bash
+    $ npm run types
+    ```
+
+  - graph.d.ts
+
+    ```typescript
+    export const typeDefs = ["type Query {\n  sayBye: String!\n  sayHello(name: String!): SayHelloResponse!\n}\n\ntype SayHelloResponse {\n  text: String!\n  error: Boolean!\n}\n"];
+    /* tslint:disable */
+    
+    export interface Query {
+      sayBye: string;
+      sayHello: SayHelloResponse;
+    }
+    
+    export interface SayHelloQueryArgs {
+      name: string;
+    }
+    
+    export interface SayHelloResponse {
+      text: string;
+      error: boolean;
+    }
+    ```
+
+  - sayHello.resovers.ts
+
+    ```typescript
+    import { SayHelloResponse, SayHelloQueryArgs } from "src/types/graph";
+    
+    const resolvers = {
+      Query: {
+        sayHello: (_, args: SayHelloQueryArgs): SayHelloResponse => {
+          return {
+            text: `Hello ${args.name}`,
+            error: false,
+          };
+        },
+      },
+    };
+    
+    export default resolvers;
+    ```
+
+  - graphql 파일의 type설정을 typescript definition 파일로 변환한 후, resolvers 파일에서 이를 활용
+
+    - 넘기는 값과 받는 값의 type을 알 수 있다는 강력함
+
