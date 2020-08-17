@@ -639,4 +639,27 @@
 
 ## 2.14 Hashing and Encrypting User Passwords
 
-- 
+- [bcrypt](https://www.npmjs.com/package/bcrypt)
+
+  - 암호화를 위한 패키지
+
+  - 설치
+
+    ```bash
+    $ npm i bcrypt
+    $ npm i @types/bcrypt --save-dev
+    ```
+
+  - BCRYPT_ROUND
+
+    - 암호화 반복 횟수
+    - `bcrypt.hash()`의 두번째 인자로 넣어준다
+
+  - `async await`
+
+    - 해시화하는 과정에 시간이 소요되기 때문에, 비동기로 진행
+
+- `@BeforeInsert`, `@BeforeUpdate`
+
+  - save 혹은 update 하기 전에 호출되는 method
+  - BeforeInsert와 BeforeUpdate 를 사용해, 사용자가 저장하기 전에 암호화를 진행
