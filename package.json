@@ -19,6 +19,7 @@
   },
   "homepage": "https://github.com/kennycha/cuber-server#readme",
   "devDependencies": {
+    "@types/bcrypt": "^3.0.0",
     "@types/cors": "^2.8.7",
     "@types/helmet": "0.0.47",
     "@types/morgan": "^1.9.1",
@@ -32,6 +33,8 @@
     "typescript": "^3.9.7"
   },
   "dependencies": {
+    "bcrypt": "^5.0.0",
+    "class-validator": "^0.12.2",
     "cors": "^2.8.5",
     "dotenv": "^8.2.0",
     "graphql-tools": "^6.0.16",

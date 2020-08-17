@@ -581,3 +581,62 @@
 
     - 이때 위의 두 줄을 코드의 최상단에 같이 작성해야 한다
     - 특히 connectOptions 를 import 하기 전에 환경변수 설정이 이루어져야 한다
+
+## 2.11 User Entity GraphQL Type
+
+- modeling
+  - graphql type 생성 후, ORM 작성하는 순서
+- `flag`
+  - state of user
+  - true or false
+
+## 2.12~13 User Entity
+
+- Entity 생성
+
+  - typeorm 패키지 사용
+  - Entity, Column 등 decorator 함수 사용
+  - User Entity의 경우, AbstractUser와 유사한 BaseEntity 를 상속하여 정의
+
+- decorator 함수
+
+  - [reference | TOAST UI](https://ui.toast.com/weekly-pick/ko_20200102/)
+  - 새 함수를 반환하여 전달 된 함수 또는 메서드의 동작을 수정하는 함수
+
+- [class-validator](https://www.npmjs.com/package/class-validator)
+
+  - type을 validate 하도록 돕는 패키지
+
+    - decorator 함수를 통해 validate
+
+    ```bash
+    $ npm i class-validator
+    ```
+
+  - typeorm 과 함께 사용가능
+
+    ```typescript
+    import { IsEmail } from "class-validator";
+    import {
+      Entity,
+      BaseEntity,
+      PrimaryGeneratedColumn,
+      Column,
+    } from "typeorm";
+    
+    @Entity()
+    class User extends BaseEntity {
+      @PrimaryGeneratedColumn() id: number;
+    
+      @Column({ type: "text", unique: true })
+      @IsEmail()
+      email: string;
+      ...
+    }
+    
+    export default User;
+    ```
+
+## 2.14 Hashing and Encrypting User Passwords
+
+- 
