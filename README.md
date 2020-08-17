@@ -472,3 +472,112 @@
 
     - 넘기는 값과 받는 값의 type을 알 수 있다는 강력함
 
+## 2.9 Configuring TypeORM
+
+- ORM
+
+  - Object Relational Mapper
+  - 코드를 SQL 언어로 바꿔주는 프로그램
+  - cf) Django ORM
+
+- [typeorm](https://typeorm.io/#/)
+
+  - Django 등과는 달리 Nodejs에는 전용 공식 ORM이 없다
+
+  - made in TypeScript
+
+  - app 시작 전에 DB를 먼저 연결하고 시작
+
+  - 설치
+
+    ```bash
+    $ npm i typeorm
+    ```
+
+- ormConfig.ts
+
+  - [configuring connection options](https://typeorm.io/#/connection-options)
+
+  - entities
+
+    - modeling과 관련한 파일들이 저장되는 폴더
+    
+    ```typescript
+    import { ConnectionOptions } from "typeorm";
+    
+    const connectionOptions: ConnectionOptions = {
+      type: "postgres",
+      database: "cuber",
+      synchronize: true,
+      logging: true,
+      entities: ["entities/**/*.*"],
+      host: process.env.DB_ENDPOINT || "localhost",
+      port: 5432,
+      username: process.env.DB_USERNAME || "kennycha",
+      password: process.env.DB_PASSWORD || "",
+    };
+    
+    export default connectionOptions;
+    ```
+
+- index.ts 에 적용
+
+  - [pg](https://www.npmjs.com/package/pg)
+
+    ```bash
+    $ npm i pg
+    ```
+    
+  - 적용
+
+    ```tsx
+    import { createConnection } from "typeorm";
+    import app from "./app";
+    import connectionOptions from "./ormConfig";
+    
+    createConnection(connectionOptions)
+      .then(() => {
+        app.start(appOptions, handleAppStart);
+      })
+      .catch((e) => {
+        console.log(e);
+      });
+    ```
+
+    - 이때, then과 catch 모두 정의해줘야 한다
+
+- [postgres tutorial](http://www.gurubee.net/postgresql/basic)
+
+  - `psql`을 통해 password를 포함한 user와 database를 생성한 후, ormConfig.ts 파일을 통해 옵션 정의
+
+- `pgadmin4 failed to locate pgadmin4.py`
+
+  - postgres 삭제 시 data까지 완전히 삭제되지 않은 채 재설치할 경우
+
+## 2.10 Creating a Virtual Environment on NodeJS 
+
+- `.env`
+
+  - 환경변수를 정의하는 파일
+  - `.gitignore` 에 추가
+
+- [dotenv](https://www.npmjs.com/package/dotenv)
+
+  - .env에 접근할 수 있도록 하는 패키지
+
+  - 설치
+
+    ```bash
+    $ npm i dotenv
+    ```
+
+  - 사용
+
+    ```tsx
+    // index.ts
+    import dotenv from 'dotenv' 
+    dotenv.config()
+    ```
+
+    - 이때 위의 두 줄을 코드의 최상단에 같이 작성해야 한다
+    - 특히 connectOptions 를 import 하기 전에 환경변수 설정이 이루어져야 한다
