@@ -663,3 +663,37 @@
 
   - save 혹은 update 하기 전에 호출되는 method
   - BeforeInsert와 BeforeUpdate 를 사용해, 사용자가 저장하기 전에 암호화를 진행
+
+## 2.15 Verifying User Password
+
+- 사용자의 password는 저장하지 않는다
+
+  - 암호화된 password만을 저장해두고
+
+  - 사용자가 로그인 시 password를 입력하면, 이를 암호화 해서 저장된 값과 같은지 판단
+
+  - `bcrypt`의 `compare` method를 사용
+
+    ```tsx
+    import bcrypt from "bcrypt";
+    import { Entity } from "typeorm";
+    
+    @Entity()
+    class User extends BaseEntity {
+      // ...
+      public comparePassword(password: string): Promise<boolean> {
+        return bcrypt.compare(password, this.password);
+      }
+      // ...
+    }
+    export default User;
+    ```
+
+- public method
+
+  - verifying method는 resolver에서 사용할 수 있도록 public으로 정의
+  - public method는 클래스 밖에서 사용 가능
+
+## 2.16~17 Verification Entity
+
+- 
