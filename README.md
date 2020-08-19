@@ -769,10 +769,11 @@
     
     @Entity()
     class Verification extends BaseEntity {
-      // ...
+      ...
+      
       @Column({ type: "text" })
       target: verificationTarget;
-      // ...
+      ...
     }
     
     export default Verification;
@@ -808,6 +809,52 @@
         ...
       }
     }
+    ```
+
+  - 서버 실행 시 새로운 type이 있다면 `graph.d.ts`에 자동으로 추가
+
+## 2.18 Creating the Verification Key
+
+- key for PHONE
+  - `Math` 사용
+    - `Math.random()`
+    - `Math.floor()`
+  - `toString()`
+
+- key for EMAIL
+
+  - `Math` 사용
+    - `Math.random()`
+  - `toString()`에 radix를 적용
+    - [radix](https://developer.mozilla.org/ko/docs/Web/JavaScript/Reference/Global_Objects/Number/toString)
+    - 2와 36사이의 정수를 받아, 해당하는 진수법으로 표기
+
+- `@BeforeInsert()`
+
+  - BeforeInsert 를 통해, verification entity를 저장하기 전에 키를 생성
+
+    ```typescript
+    import { BeforeInsert } from "typeorm";
+    
+    @Entity()
+    class Verification extends BaseEntity {
+      ...
+      
+      @Column({ type: "text" })
+      key: string;  
+      ...  
+      
+      @BeforeInsert()
+      createKey(): void {
+        if (this.target === PHONE) {
+          this.key = Math.floor(Math.random() * 100000).toString();
+        } else if (this.target === EMAIL) {
+          this.key = Math.random().toString(36).substr(2);
+        }
+      }
+    }
+    
+    export default Verification;
     ```
 
     
