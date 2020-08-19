@@ -694,6 +694,120 @@
   - verifying method는 resolver에서 사용할 수 있도록 public으로 정의
   - public method는 클래스 밖에서 사용 가능
 
-## 2.16~17 Verification Entity
+## 2.16 Verification Entity
 
-- 
+- User Entity와 동일하게, graphql 작성 후 ORM 작성
+  - `Verification.graphql`
+    
+    ```
+    type Verification {
+      id: Int!
+      target: String!
+      payload: String!
+      key: String!
+      user: Boolean!
+      createdAt: String!
+      updatedAt: String!
+    }
+    ```
+    
+  - `Verification.ts`
+    
+    ```typescript
+    import {
+      BaseEntity,
+      Column,
+      Entity,
+      PrimaryGeneratedColumn,
+      CreateDateColumn,
+      UpdateDateColumn,
+    } from "typeorm";
+    
+    @Entity()
+    class Verification extends BaseEntity {
+      @PrimaryGeneratedColumn() id: number;
+    
+      @Column({ type: "text" })
+      target: string;
+    
+      @Column({ type: "text" })
+      payload: string;
+    
+      @Column({ type: "text" })
+      key: string;
+    
+      @Column({ type: "boolean", default: false })
+      used: boolean;
+    
+      @CreateDateColumn() createdAt: string;
+      @UpdateDateColumn() updatedAt: string;
+    }
+    
+    export default Verification;
+    ```
+
+## 2.17 Using Types on the Entities
+
+- verification target의 type
+
+  - 현재는 string으로만 제한해 놓았기 때문에, "EMAIL", "Email", "email", "e-mail" 등 통일되지 않은 값들이 들어올 수 있다
+
+  - 이를 혼동하지 않고 사용할 수 있도록, `verificationTarget` 을 정의하여 사용
+
+  - 정의
+
+    ```typescript
+    // types.d.ts
+    export type verificationTarget = "PHONE" | "EMAIL";
+    ```
+
+  - 사용
+
+    ```typescript
+    // Verification.ts
+    import { verificationTarget } from "src/types/types";
+    
+    @Entity()
+    class Verification extends BaseEntity {
+      // ...
+      @Column({ type: "text" })
+      target: verificationTarget;
+      // ...
+    }
+    
+    export default Verification;
+    ```
+
+- `enum`
+
+  - enumerated type (열거형 값)
+
+  - typeorm에 `enum` key - value를 함께 넣어 작성하면, 열거형 값 안의 값들 중에서만 값이 선택될 수 있다
+
+  - 즉, 아래와 같이 사용한다면
+
+    ``` typescript
+    @Column({ type: "text", enum: ["PHONE", "EMAIL"] })
+      target: verificationTarget;
+    ```
+
+    target column에는 `"PHONE"` 혹은 `"EMAIL"`만이 그 값으로 들어갈 수 있다
+
+- `predev` script
+
+  - 현재는 새로운 type을 넣을 때 마다 `types` script를 입력해야 한다
+
+  - `dev` script 전에 실행되는 `predev` script를 추가해서, 서버 실행 전 자동으로 새로운 type이 있다면 추가하고 서버를 실행하도록 자동화
+
+    ```json
+    // package.json
+    {
+      ...
+      "scripts": {
+        "predev": "npm run types",
+        ...
+      }
+    }
+    ```
+
+    
