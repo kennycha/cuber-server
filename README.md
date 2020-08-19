@@ -996,10 +996,70 @@
 ## 2.21~22 Chat and Message Entities
 
 - relationship in `graphql`
+
   - one relationship 은 `entity type name`을 통해 표현
+
+    ```
+    // Message.graphql
+    
+    type Message {
+      ...
+      chat: Chat!
+      ...
+    }
+    ```
+
   - many relationship 은 `[entity type name]` 을 통해 표현
+
+    ```
+    // Chat.graphql
+    
+    type Chat {
+      ...
+      participants: [User]!
+      ...
+    }
+    ```
+
 - relationship in `typeorm`
+
   - `OneToMany`
+
+    ```typescript
+    // Chat.ts
+    
+    import { Entity, BaseEntity, OneToMany } from "typeorm";
+    import Message from "./Message";
+    
+    @Entity()
+    class Chat extends BaseEntity {
+      ...
+      @OneToMany((type) => Message, (message) => message.chat)
+      messages: Message[];
+      ...
+    }
+    
+    export default Chat;
+    ```
+
   - `ManyToOne`
+
+    ```typescript
+    // Message.ts
+    
+    import { Entity, BaseEntity, ManyToOne } from "typeorm";
+    import Chat from "./Chat";
+    
+    @Entity()
+    class Message extends BaseEntity {
+      ...
+      @ManyToOne((type) => Chat, (chat) => chat.messages)
+      chat: Chat;
+      ...
+    }
+    
+    export default Message;
+    ```
+
   - `ManyToMany`
-- 
+
