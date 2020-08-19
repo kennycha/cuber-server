@@ -857,4 +857,149 @@
     export default Verification;
     ```
 
-    
+## 2.19 Place Entity
+
+- Place.graphql
+
+  ```
+  type Place {
+    id: Int!
+    name: String!
+    lat: Float!
+    lng: Float!
+    address: String!
+    isFav: Boolean!
+    createdAt: String!
+    updatedAt: String
+  }
+  ```
+
+- Place Entity
+
+  ```typescript
+  import {
+    Entity,
+    BaseEntity,
+    PrimaryGeneratedColumn,
+    Column,
+    CreateDateColumn,
+    UpdateDateColumn,
+  } from "typeorm";
+  
+  @Entity()
+  class Place extends BaseEntity {
+    @PrimaryGeneratedColumn() id: number;
+  
+    @Column({ type: "text" })
+    name: string;
+  
+    @Column({ type: "double precision", default: 0 })
+    lat: number;
+  
+    @Column({ type: "double precision", default: 0 })
+    lng: number;
+  
+    @Column({ type: "text" })
+    address: string;
+  
+    @Column({ type: "boolean", default: false })
+    isFav: boolean;
+  
+    @CreateDateColumn() createdAt: string;
+  
+    @UpdateDateColumn() updatedAt: string;
+  }
+  
+  export default Place;
+  ```
+
+## 2.20 Ride Entity
+
+- Ride.graphql
+
+  ```
+  type Ride {
+    id: Int!
+    status: String!
+    pickUpAddress: String!
+    pickUpLat: Float!
+    pickUplng: Float!
+    dropOffAddress: String!
+    dropOffLat: Float!
+    dropOfflng: Float!
+    price: Float!
+    distance: String!
+    duration: String!
+    createdAt: String!
+    updatedAt: String
+  }
+  ```
+
+- Ride entity
+
+  ```typescript
+  import {
+    Entity,
+    BaseEntity,
+    PrimaryGeneratedColumn,
+    Column,
+    CreateDateColumn,
+    UpdateDateColumn,
+  } from "typeorm";
+  import { rideStatus } from "src/types/types";
+  
+  @Entity()
+  class Ride extends BaseEntity {
+    @PrimaryGeneratedColumn() id: number;
+  
+    @Column({
+      type: "text",
+      enum: ["ACCEPTED", "FINISHED", "CANCELED", "REQUESTING", "ONROUTE"],
+    })
+    status: rideStatus;
+  
+    @Column({ type: "text" })
+    pickUpAddress: string;
+  
+    @Column({ type: "double precision", default: 0 })
+    pickUpLat: number;
+  
+    @Column({ type: "double precision", default: 0 })
+    pickUpLng: number;
+  
+    @Column({ type: "text" })
+    dropOffAddress: string;
+  
+    @Column({ type: "double precision", default: 0 })
+    dropOffLat: number;
+  
+    @Column({ type: "double precision", default: 0 })
+    dropOffLng: number;
+  
+    @Column({ type: "double precision", default: 0 })
+    price: number;
+  
+    @Column({ type: "text" })
+    distance: string;
+  
+    @Column({ type: "text" })
+    duration: string;
+  
+    @CreateDateColumn() createdAt: string;
+  
+    @UpdateDateColumn() updatedAt: string;
+  }
+  
+  export default Ride;
+  ```
+
+## 2.21~22 Chat and Message Entities
+
+- relationship in `graphql`
+  - one relationship 은 `entity type name`을 통해 표현
+  - many relationship 은 `[entity type name]` 을 통해 표현
+- relationship in `typeorm`
+  - `OneToMany`
+  - `ManyToOne`
+  - `ManyToMany`
+- 
