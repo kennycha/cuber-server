@@ -4,7 +4,7 @@
 
 ### Public Resolvers:
 
-- [ ] Sing In / Sign up with Facebook
+- [x] Sing In / Sign up with Facebook
 - [ ] Sing In with Email
 - [ ] Starts Phone Number Verification
 - [ ] Complete Phone Number Verification
@@ -12,6 +12,8 @@
 
 ### Private Resolvers:
 
+- [ ] Generate JWT
+- [ ] Verify JWT
 - [ ] Verify Email
 - [ ] Get my Profile
 - [ ] Update my Profile
@@ -1137,3 +1139,94 @@
   ```
 
 ## 2.25~26 Planning the Resolvers
+
+## 2.27~29 FacebookConnect Resolver
+
+- FacebookConnect.graphql
+
+  ```
+  type FacebookConnectResponse {
+    ok: Boolean!
+    error: String
+    token: String
+  }
+  
+  type Mutation {
+    FacebookConnect(
+      firstName: String!
+      lastName: String!
+      email: String
+      fbId: String!
+    ): FacebookConnectResponse
+  }
+  ```
+
+  - `fbId`를 로그인 후에도 사용하기 위해, User entity정의 및 type에도 `fbId`를 추가
+
+- typeorm findOne
+
+  - [find](https://typeorm.io/#/find-options)
+  - 건네받은 fbId 를 가진 User 가 있다면 생성하지 않고 return
+  - 없다면 새로운 User를 생성하고 저장한 후 return
+    - fbId를 이용해서 프로필 사진까지 추가해서 저장
+
+- FacebookConnect Resolvers
+
+  ```typescript
+  import { Resolvers } from "src/types/resolvers";
+  import {
+    FacebookConnectMutationArgs,
+    FacebookConnectResponse,
+  } from "src/types/graph";
+  import User from "../../../entities/User";
+  
+  const resolvers: Resolvers = {
+    Mutation: {
+      FacebookConnect: async (
+        _,
+        args: FacebookConnectMutationArgs
+      ): Promise<FacebookConnectResponse> => {
+        const { fbId } = args;
+        try {
+          const existingUser = await User.findOne({ fbId });
+          if (existingUser) {
+            return {
+              ok: true,
+              error: null,
+              token: "Coming soon, already",
+            };
+          }
+        } catch (error) {
+          return {
+            ok: false,
+            error: error.message,
+            token: null,
+          };
+        }
+        try {
+          await User.create({
+            ...args,
+            profilePhoto: `http://graph.facebook.com/${fbId}/picture?type=square`,
+          }).save();
+          return {
+            ok: true,
+            error: null,
+            token: "Coming soon, created",
+          };
+        } catch (error) {
+          return {
+            ok: false,
+            error: error.message,
+            token: null,
+          };
+        }
+      },
+    },
+  };
+  export default resolvers;
+  ```
+
+## 2.31~32 EmailSignIn Resolver
+
+
+
