@@ -1,5 +1,40 @@
 # CUBER Server
 
+## Resolvers
+
+### Public Resolvers:
+
+- [ ] Sing In / Sign up with Facebook
+- [ ] Sing In with Email
+- [ ] Starts Phone Number Verification
+- [ ] Complete Phone Number Verification
+- [ ] Sign Up with Email
+
+### Private Resolvers:
+
+- [ ] Verify Email
+- [ ] Get my Profile
+- [ ] Update my Profile
+- [ ] Toggle Driving Mode
+- [ ] Report Location / Orientation
+- [ ] Add Place
+- [ ] Edit Place
+- [ ] Delete Place
+- [ ] See Nearby Drivers
+- [ ] Subscribe to Nearby Drivers
+- [ ] Request a Ride
+- [ ] Get Nearby Ride Requests
+- [ ] Subscribe to Nearby Ride Requests
+- [ ] Subscribe to Ride Status
+- [ ] Get Chat Room Messages
+- [ ] Subscribe to Chat Room Messages
+- [ ] Send a Chat Message
+
+## Code Challenge
+
+- [ ] Get Ride History
+- [ ] See Ride Detail
+
 ## 2.0 Project Setup: Git & Installation
 
 - [npm install with devDependencies](https://docs.npmjs.com/specifying-dependencies-and-devdependencies-in-a-package-json-file)
@@ -106,12 +141,12 @@
 
     ```typescript
     // index.ts
-    console.log('works')
+    console.log("works");
     ```
 
     ```bash
     $ npm run dev
-    
+
     # works
     ```
 
@@ -137,9 +172,9 @@
 ## 2.3~4 GraphQL Yoga and Express
 
 - [graphql-yoga](https://github.com/prisma-labs/graphql-yoga)
-  
+
 - graphql 서버 개발 환경을 만들어주는, create-react-app과 유사한 역할의 패키지
-  
+
 - [middleware](https://developer.mozilla.org/en-US/docs/Glossary/Middleware)
 
   - 앱의 연결이나 요청들을 다루는 방식을 수정하는 역할
@@ -160,15 +195,16 @@
   - nodejs 환경의 서버 개발 프레임워크
   - graphql의 서버 부분은 express를 포함한다
 
-- JavaScript class 
+- JavaScript class
+
   - public
   - constructor
   - private
 
 - GraphQLServer
-  
+
 - 인스턴스 생성 시에 **resolvers**와 **definitions**를 option으로 포함해야 한다
-  
+
 - appOptions
 
   - type은 graphql-yoga에서 import 한 Options
@@ -180,20 +216,19 @@
     ```typescript
     import { Options } from "graphql-yoga";
     import app from "./app";
-    
+
     const PORT: number | string = process.env.PORT || 4000;
     const PLAYGROUND_ENDPOINT: string = "/playground";
     const GRAPHQL_ENDPOINT: string = "/graphql";
-    
+
     const appOptions: Options = {
       port: PORT,
       playground: PLAYGROUND_ENDPOINT,
       endpoint: GRAPHQL_ENDPOINT,
-      
     };
-    
+
     const handleAppStart = () => console.log(`Listening on port ${PORT}`);
-    
+
     app.start(appOptions, handleAppStart);
     ```
 
@@ -219,25 +254,29 @@
     // schema.ts
     import { GraphQLSchema } from "graphql";
     import { makeExecutableSchema } from "graphql-tools";
-    import { fileLoader, mergeResolvers, mergeTypes } from "merge-graphql-schemas";
+    import {
+      fileLoader,
+      mergeResolvers,
+      mergeTypes,
+    } from "merge-graphql-schemas";
     import path from "path";
-    
+
     const allTypes: GraphQLSchema[] = fileLoader(
       path.join(__dirname, "./api/**/*.graphql")
     );
-    
+
     const allResolvers: any[] = fileLoader(
       path.join(__dirname, "./api/**/*.resolvers.*")
     );
-    
+
     const mergedTypes = mergeTypes(allTypes);
     const mergedResolvers = mergeResolvers(allResolvers);
-    
+
     const schema = makeExecutableSchema({
       typeDefs: mergedTypes,
       resolvers: mergedResolvers,
     });
-    
+
     export default schema;
     ```
 
@@ -245,7 +284,7 @@
     // app.ts
     import { GraphQLServer } from "graphql-yoga";
     import schema from "./schema";
-    
+
     class App {
       public app: GraphQLServer;
       constructor() {
@@ -254,10 +293,9 @@
         });
       ...
     }
-    
+
     export default new App().app;
     ```
-
 
 ## 2.7 Graphql To Typescript
 
@@ -267,12 +305,12 @@
 
     ```
     # sayHello.graphql
-    
+
     type Greeting {
       text: String!
       error: Boolean!
     }
-    
+
     type Query {
       sayHello: Greeting!
     }
@@ -280,13 +318,13 @@
 
     ```typescript
     // sayHello.resolvers.ts
-    
+
     const resolvers = {
       Query: {
         sayHello: () => "Hey hello how are ya",
       },
     };
-    
+
     export default resolvers;
     ```
 
@@ -294,10 +332,11 @@
     - resolvers 파일에서는 쿼리의 결과값이 Srting 이다
 
   - 기본 상황에서는 Typescript가 이것을 알려주지 않는다
-    
+
     - 단지 request 에 대한 응답을 하지 않는다
+
   - 이를 Typescript 가 알려주도록 만드는 것이 중요하다
-    
+
     - 내가 **return 해야 하는 것**을 아는 것은 중요하다
 
 - graphql을 types로 바꾸기
@@ -324,7 +363,7 @@
       }
       ```
 
-    - `graphql-to-typescript`를 사용해서, `./src/schema.graphql` 파일을 복제해, `./src/types/graph.d.ts` 라는 Typescript definition 파일로 만들어라 
+    - `graphql-to-typescript`를 사용해서, `./src/schema.graphql` 파일을 복제해, `./src/types/graph.d.ts` 라는 Typescript definition 파일로 만들어라
 
   - types 가 실행되기 전에 실행되는 `pretypes`도 추가
 
@@ -361,7 +400,7 @@
         sayBye: String!
         sayHello: Greeting!
       }
-      
+
       type Greeting {
         text: String!
         error: Boolean!
@@ -371,14 +410,16 @@
     - src/types/graph.d.ts
 
       ```typescript
-      export const typeDefs = ["type Query {\n  sayBye: String!\n  sayHello: Greeting!\n}\n\ntype Greeting {\n  text: String!\n  error: Boolean!\n}\n"];
+      export const typeDefs = [
+        "type Query {\n  sayBye: String!\n  sayHello: Greeting!\n}\n\ntype Greeting {\n  text: String!\n  error: Boolean!\n}\n",
+      ];
       /* tslint:disable */
-      
+
       export interface Query {
         sayBye: string;
         sayHello: Greeting;
       }
-      
+
       export interface Greeting {
         text: string;
         error: boolean;
@@ -391,7 +432,7 @@
 
       ```typescript
       import { Greeting } from "src/types/graph";
-      
+
       const resolvers = {
         Query: {
           sayHello: (): Greeting => {
@@ -402,10 +443,9 @@
           },
         },
       };
-      
+
       export default resolvers;
       ```
-
 
 ## 2.8 Typechecking Graphql Arguments
 
@@ -418,7 +458,7 @@
       text: String!
       error: Boolean!
     }
-    
+
     type Query {
       sayHello(name: String!): SayHelloResponse!
     }
@@ -431,18 +471,20 @@
   - graph.d.ts
 
     ```typescript
-    export const typeDefs = ["type Query {\n  sayBye: String!\n  sayHello(name: String!): SayHelloResponse!\n}\n\ntype SayHelloResponse {\n  text: String!\n  error: Boolean!\n}\n"];
+    export const typeDefs = [
+      "type Query {\n  sayBye: String!\n  sayHello(name: String!): SayHelloResponse!\n}\n\ntype SayHelloResponse {\n  text: String!\n  error: Boolean!\n}\n",
+    ];
     /* tslint:disable */
-    
+
     export interface Query {
       sayBye: string;
       sayHello: SayHelloResponse;
     }
-    
+
     export interface SayHelloQueryArgs {
       name: string;
     }
-    
+
     export interface SayHelloResponse {
       text: string;
       error: boolean;
@@ -453,7 +495,7 @@
 
     ```typescript
     import { SayHelloResponse, SayHelloQueryArgs } from "src/types/graph";
-    
+
     const resolvers = {
       Query: {
         sayHello: (_, args: SayHelloQueryArgs): SayHelloResponse => {
@@ -464,7 +506,7 @@
         },
       },
     };
-    
+
     export default resolvers;
     ```
 
@@ -501,10 +543,10 @@
   - entities
 
     - modeling과 관련한 파일들이 저장되는 폴더
-    
+
     ```typescript
     import { ConnectionOptions } from "typeorm";
-    
+
     const connectionOptions: ConnectionOptions = {
       type: "postgres",
       database: "cuber",
@@ -516,7 +558,7 @@
       username: process.env.DB_USERNAME || "kennycha",
       password: process.env.DB_PASSWORD || "",
     };
-    
+
     export default connectionOptions;
     ```
 
@@ -527,14 +569,14 @@
     ```bash
     $ npm i pg
     ```
-    
+
   - 적용
 
     ```tsx
     import { createConnection } from "typeorm";
     import app from "./app";
     import connectionOptions from "./ormConfig";
-    
+
     createConnection(connectionOptions)
       .then(() => {
         app.start(appOptions, handleAppStart);
@@ -554,7 +596,7 @@
 
   - postgres 삭제 시 data까지 완전히 삭제되지 않은 채 재설치할 경우
 
-## 2.10 Creating a Virtual Environment on NodeJS 
+## 2.10 Creating a Virtual Environment on NodeJS
 
 - `.env`
 
@@ -575,8 +617,8 @@
 
     ```tsx
     // index.ts
-    import dotenv from 'dotenv' 
-    dotenv.config()
+    import dotenv from "dotenv";
+    dotenv.config();
     ```
 
     - 이때 위의 두 줄을 코드의 최상단에 같이 작성해야 한다
@@ -623,17 +665,17 @@
       PrimaryGeneratedColumn,
       Column,
     } from "typeorm";
-    
+
     @Entity()
     class User extends BaseEntity {
       @PrimaryGeneratedColumn() id: number;
-    
+
       @Column({ type: "text", unique: true })
       @IsEmail()
       email: string;
       ...
     }
-    
+
     export default User;
     ```
 
@@ -677,7 +719,7 @@
     ```tsx
     import bcrypt from "bcrypt";
     import { Entity } from "typeorm";
-    
+
     @Entity()
     class User extends BaseEntity {
       // ...
@@ -697,8 +739,9 @@
 ## 2.16 Verification Entity
 
 - User Entity와 동일하게, graphql 작성 후 ORM 작성
+
   - `Verification.graphql`
-    
+
     ```
     type Verification {
       id: Int!
@@ -710,9 +753,9 @@
       updatedAt: String!
     }
     ```
-    
+
   - `Verification.ts`
-    
+
     ```typescript
     import {
       BaseEntity,
@@ -722,27 +765,27 @@
       CreateDateColumn,
       UpdateDateColumn,
     } from "typeorm";
-    
+
     @Entity()
     class Verification extends BaseEntity {
       @PrimaryGeneratedColumn() id: number;
-    
+
       @Column({ type: "text" })
       target: string;
-    
+
       @Column({ type: "text" })
       payload: string;
-    
+
       @Column({ type: "text" })
       key: string;
-    
+
       @Column({ type: "boolean", default: false })
       used: boolean;
-    
+
       @CreateDateColumn() createdAt: string;
       @UpdateDateColumn() updatedAt: string;
     }
-    
+
     export default Verification;
     ```
 
@@ -766,16 +809,16 @@
     ```typescript
     // Verification.ts
     import { verificationTarget } from "src/types/types";
-    
+
     @Entity()
     class Verification extends BaseEntity {
       ...
-      
+
       @Column({ type: "text" })
       target: verificationTarget;
       ...
     }
-    
+
     export default Verification;
     ```
 
@@ -787,7 +830,7 @@
 
   - 즉, 아래와 같이 사용한다면
 
-    ``` typescript
+    ```typescript
     @Column({ type: "text", enum: ["PHONE", "EMAIL"] })
       target: verificationTarget;
     ```
@@ -816,6 +859,7 @@
 ## 2.18 Creating the Verification Key
 
 - key for PHONE
+
   - `Math` 사용
     - `Math.random()`
     - `Math.floor()`
@@ -835,15 +879,15 @@
 
     ```typescript
     import { BeforeInsert } from "typeorm";
-    
+
     @Entity()
     class Verification extends BaseEntity {
       ...
-      
+
       @Column({ type: "text" })
-      key: string;  
-      ...  
-      
+      key: string;
+      ...
+
       @BeforeInsert()
       createKey(): void {
         if (this.target === PHONE) {
@@ -853,7 +897,7 @@
         }
       }
     }
-    
+
     export default Verification;
     ```
 
@@ -885,31 +929,31 @@
     CreateDateColumn,
     UpdateDateColumn,
   } from "typeorm";
-  
+
   @Entity()
   class Place extends BaseEntity {
     @PrimaryGeneratedColumn() id: number;
-  
+
     @Column({ type: "text" })
     name: string;
-  
+
     @Column({ type: "double precision", default: 0 })
     lat: number;
-  
+
     @Column({ type: "double precision", default: 0 })
     lng: number;
-  
+
     @Column({ type: "text" })
     address: string;
-  
+
     @Column({ type: "boolean", default: false })
     isFav: boolean;
-  
+
     @CreateDateColumn() createdAt: string;
-  
+
     @UpdateDateColumn() updatedAt: string;
   }
-  
+
   export default Place;
   ```
 
@@ -947,49 +991,49 @@
     UpdateDateColumn,
   } from "typeorm";
   import { rideStatus } from "src/types/types";
-  
+
   @Entity()
   class Ride extends BaseEntity {
     @PrimaryGeneratedColumn() id: number;
-  
+
     @Column({
       type: "text",
       enum: ["ACCEPTED", "FINISHED", "CANCELED", "REQUESTING", "ONROUTE"],
     })
     status: rideStatus;
-  
+
     @Column({ type: "text" })
     pickUpAddress: string;
-  
+
     @Column({ type: "double precision", default: 0 })
     pickUpLat: number;
-  
+
     @Column({ type: "double precision", default: 0 })
     pickUpLng: number;
-  
+
     @Column({ type: "text" })
     dropOffAddress: string;
-  
+
     @Column({ type: "double precision", default: 0 })
     dropOffLat: number;
-  
+
     @Column({ type: "double precision", default: 0 })
     dropOffLng: number;
-  
+
     @Column({ type: "double precision", default: 0 })
     price: number;
-  
+
     @Column({ type: "text" })
     distance: string;
-  
+
     @Column({ type: "text" })
     duration: string;
-  
+
     @CreateDateColumn() createdAt: string;
-  
+
     @UpdateDateColumn() updatedAt: string;
   }
-  
+
   export default Ride;
   ```
 
@@ -1001,7 +1045,7 @@
 
     ```
     // Message.graphql
-    
+
     type Message {
       ...
       chat: Chat!
@@ -1013,7 +1057,7 @@
 
     ```
     // Chat.graphql
-    
+
     type Chat {
       ...
       participants: [User]!
@@ -1027,10 +1071,10 @@
 
     ```typescript
     // Chat.ts
-    
+
     import { Entity, BaseEntity, OneToMany } from "typeorm";
     import Message from "./Message";
-    
+
     @Entity()
     class Chat extends BaseEntity {
       ...
@@ -1038,7 +1082,7 @@
       messages: Message[];
       ...
     }
-    
+
     export default Chat;
     ```
 
@@ -1046,10 +1090,10 @@
 
     ```typescript
     // Message.ts
-    
+
     import { Entity, BaseEntity, ManyToOne } from "typeorm";
     import Chat from "./Chat";
-    
+
     @Entity()
     class Message extends BaseEntity {
       ...
@@ -1057,7 +1101,7 @@
       chat: Chat;
       ...
     }
-    
+
     export default Message;
     ```
 
@@ -1068,12 +1112,18 @@
 ## 2.24 Resolver Types
 
 - resolver의 parameter
+
   - Resolver = ( `parent`, `args`, `context`, `info` ) => {}
 
 - type Resolver
 
   ```typescript
-  export type Resolver = (parent: any, args: any, context: any, info: any) => any;
+  export type Resolver = (
+    parent: any,
+    args: any,
+    context: any,
+    info: any
+  ) => any;
   ```
 
 - interface Resolvers
@@ -1086,4 +1136,4 @@
   }
   ```
 
-  
+## 2.25~26 Planning the Resolvers
