@@ -1063,3 +1063,27 @@
 
   - `ManyToMany`
 
+## 2.23 Model Relationships like a Boss
+
+## 2.24 Resolver Types
+
+- resolver의 parameter
+  - Resolver = ( `parent`, `args`, `context`, `info` ) => {}
+
+- type Resolver
+
+  ```typescript
+  export type Resolver = (parent: any, args: any, context: any, info: any) => any;
+  ```
+
+- interface Resolvers
+
+  ```typescript
+  export interface Resolvers {
+    [key: string]: {
+      [key: string]: Resolver;
+    };
+  }
+  ```
+
+  
