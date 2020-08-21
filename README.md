@@ -5,7 +5,7 @@
 ### Public Resolvers:
 
 - [x] Sing In / Sign up with Facebook
-- [ ] Sing In with Email
+- [x] Sing In with Email
 - [ ] Starts Phone Number Verification
 - [ ] Complete Phone Number Verification
 - [ ] Sign Up with Email
@@ -1228,5 +1228,93 @@
 
 ## 2.31~32 EmailSignIn Resolver
 
+- EmailSignIn.graphql
 
+  ```
+  type EmailSignInResponse {
+    ok: Boolean!
+    error: String
+    token: String
+  }
+  
+  type Mutation {
+    EmailSignIn(email: String!, password: String!): EmailSignInResponse!
+  }
+  ```
+
+- EmailSignIn Resolvers
+
+  ```typescript
+  import { Resolvers } from "src/types/resolvers";
+  import { EmailSignInMutationArgs, EmailSignInResponse } from "src/types/graph";
+  import User from "src/entities/User";
+  
+  const resolvers: Resolvers = {
+    Mutation: {
+      EmailSignIn: async (
+        _,
+        args: EmailSignInMutationArgs
+      ): Promise<EmailSignInResponse> => {
+        const { email, password } = args;
+        try {
+          const user = await User.findOne({ email });
+          if (!user) {
+            return {
+              ok: false,
+              error: "No user found",
+              token: null,
+            };
+          }
+          const checkPassword = await user.comparePassword(password);
+          if (checkPassword) {
+            return {
+              ok: true,
+              error: null,
+              token: "Comming Soon",
+            };
+          } else {
+            return {
+              ok: false,
+              error: "Wrong password",
+              token: null,
+            };
+          }
+        } catch (error) {
+          return {
+            ok: false,
+            error: error.message,
+            token: null,
+          };
+        }
+      },
+    },
+  };
+  
+  export default resolvers;
+  ```
+
+  - `findOne`을 통해 args.email에 해당하는 user 가 있는 지 찾음
+  - 있다면 args.password가 저장된 비밀번호와 동일한지 비교
+
+## 2.33 Introduction to Twilio
+
+- [twilio](https://www.twilio.com/)
+
+  - for SMS verification
+
+  - [twilio docs](https://www.twilio.com/docs)
+
+  - [npm|twilio](https://www.npmjs.com/package/twilio)
+
+    ```bash
+    $ npm i twilio
+    ```
+
+  - [npm |@types/twilio](https://www.npmjs.com/package/@types/twilio)
+
+    ```bash
+    $ npm i @types/twilio --save-dev
+    ```
+
+## 2.34~36 StartPhoneVerification Resolver
 
