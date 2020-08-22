@@ -6,7 +6,7 @@
 
 - [x] Sing In / Sign up with Facebook
 - [x] Sing In with Email
-- [ ] Starts Phone Number Verification
+- [x] Starts Phone Number Verification
 - [ ] Complete Phone Number Verification
 - [ ] Sign Up with Email
 
@@ -1316,5 +1316,179 @@
     $ npm i @types/twilio --save-dev
     ```
 
+  - twillio 에서 trial number 생성 후, `id`, `number`, `token`을 `.env` 파일에 저장
+
+  - `process.env.변수명` 으로 불러와서 사용
+
 ## 2.34~36 StartPhoneVerification Resolver
+
+- StartPhoneVerification.graphql
+
+  ```
+  type StartPhoneVerificationResponse {
+    ok: Boolean!
+    error: String
+  }
+  
+  type Mutation {
+    StartPhoneVerification(phoneNumber: String!): StartPhoneVerificationResponse!
+  }
+  ```
+
+- StartPhoneVerification Resolver
+
+  ```typescript
+  import { Resolvers } from "src/types/resolvers";
+  import {
+    StartPhoneVerificationResponse,
+    StartPhoneVerificationMutationArgs,
+  } from "../../../types/graph";
+  import Verification from "../../../entities/Verification";
+  import { sendVerificationSMS } from "../../../utils/sendSMS";
+  
+  const resolvers: Resolvers = {
+    Mutation: {
+      StartPhoneVerification: async (
+        _,
+        args: StartPhoneVerificationMutationArgs
+      ): Promise<StartPhoneVerificationResponse> => {
+        const { phoneNumber } = args;
+        try {
+          const existingVerification = await Verification.findOne({
+            payload: phoneNumber,
+          });
+          if (existingVerification) {
+            existingVerification.remove();
+          }
+          const newVerification = await Verification.create({
+            payload: phoneNumber,
+            target: "PHONE",
+          }).save();
+          await sendVerificationSMS(newVerification.payload, newVerification.key);
+          return {
+            ok: true,
+            error: null,
+          };
+        } catch (error) {
+          return {
+            ok: false,
+            error: error.message,
+          };
+        }
+      },
+    },
+  };
+  
+  export default resolvers;
+  ```
+
+  - 만약 현재 phoneNumber에 해당하는 인증이 있다면 삭제
+  - 새로운 인증을 생성하고 `src/utils/` 에 정의한 `sendVerificationSMS` 함수를 호출해 인증문자를 발송
+
+## 2.37~38 CompletePhoneVerification
+
+- CompletePhoneVerification.graphql
+
+  ```
+  type CompletePhoneVerificationResponse {
+    ok: Boolean!
+    error: String
+    token: String
+  }
+  
+  type Mutation {
+    CompletePhoneVerification(
+      phoneNumber: String!
+      key: String!
+    ): CompletePhoneVerificationResponse!
+  }
+  ```
+
+- CompletePhoneVerification Resolvers
+
+  ```typescript
+  import { Resolvers } from "src/types/resolvers";
+  import {
+    CompletePhoneVerificationMutationArgs,
+    CompletePhoneVerificationResponse,
+  } from "../../../types/graph";
+  import Verification from "src/entities/Verification";
+  import User from "src/entities/User";
+  
+  const resolvers: Resolvers = {
+    Mutation: {
+      CompletePhoneVerification: async (
+        _,
+        args: CompletePhoneVerificationMutationArgs
+      ): Promise<CompletePhoneVerificationResponse> => {
+        const { phoneNumber, key } = args;
+        try {
+          const verification = await Verification.findOne({
+            payload: phoneNumber,
+            key,
+          });
+          if (!verification) {
+            return {
+              ok: false,
+              error: "Verification key not valid",
+              token: null,
+            };
+          } else {
+            verification.verified = true;
+            verification.save();
+          }
+        } catch (error) {
+          return {
+            ok: false,
+            error: error.message,
+            token: null,
+          };
+        }
+  
+        try {
+          const user = await User.findOne({ phoneNumber });
+          if (user) {
+            user.verifiedPhoneNumber = true;
+            user.save();
+            return {
+              ok: true,
+              error: null,
+              token: "Coming Soon",
+            };
+          } else {
+            return {
+              ok: true,
+              error: null,
+              token: null,
+            };
+          }
+        } catch (error) {
+          return {
+            ok: false,
+            error: error.message,
+            token: null,
+          };
+        }
+      },
+    },
+  };
+  
+  export default resolvers;
+  ```
+
+  - 흐름
+    - 넘겨받은 번호와 키를 가진 Verification이 없다면 `not valid` 에러를 리턴
+    - 찾았다면 해당 Verification의 `verified` 값을 true로 변경 후 저장
+    - verification을 찾은 경우에는 아직 return을 하지 않았으므로, 추가로 `try-catch` 를 통해 return 을 실시
+    - phoneNumber를 통해 user를 찾고, 해당 user의 `verifiedPhoneNumber`를 true로 변경 후 저장
+    - 토큰을 발행(로그인)
+    - 만약 user가 없다면(가입 단계라면) `ok`  true값, `token`은 null 을 가지는 객체를 반환
+    - 이후 로그인 진행
+  - type 및 entity 변경
+    - Verification Entity에 `verified` column을 추가
+    - 인증 진행 중인 번호로 이미 인증이 이루어졌다면, 확인 단계 거치지 않고 유저를 로그인 시키기 위함
+
+## 2.39 EmailSignup Resolver
+
+- 
 
