@@ -7,8 +7,17 @@
 - [x] Sing In / Sign up with Facebook
 - [x] Sing In with Email
 - [x] Starts Phone Number Verification
-- [ ] Complete Phone Number Verification
+- [x] Complete Phone Number Verification
 - [ ] Sign Up with Email
+
+---
+
+### Authentication:
+
+- [ ] Generate JWT
+- [ ] Verify JWT
+
+---
 
 ### Private Resolvers:
 
@@ -1490,5 +1499,75 @@
 
 ## 2.39 EmailSignup Resolver
 
-- 
+- EmailSignUp.graphql
+
+  ```
+  type EmailSignUpResponse {
+    ok: Boolean!
+    error: String
+    token: String
+  }
+  
+  type Mutation {
+    EmailSignUp(
+      firstName: String!
+      lastName: String!
+      email: String!
+      password: String!
+      profilePhoto: String!
+      age: Int!
+      phoneNumber: String!
+    ): EmailSignUpResponse!
+  }
+  ```
+
+- EmailSignUp Resolvers
+
+  ```typescript
+  import { Resolvers } from "src/types/resolvers";
+  import { EmailSignInMutationArgs, EmailSignUpResponse } from "src/types/graph";
+  import User from "src/entities/User";
+  
+  const resolvers: Resolvers = {
+    Mutation: {
+      EmailSignUp: async (
+        _,
+        args: EmailSignInMutationArgs
+      ): Promise<EmailSignUpResponse> => {
+        const { email } = args;
+        try {
+          const existingUser = await User.findOne({ email });
+          if (existingUser) {
+            return {
+              ok: false,
+              error: "You should log in instead",
+              token: null,
+            };
+          } else {
+            const newUser = await User.create({ ...args }).save();
+            return {
+              ok: true,
+              error: null,
+              token: "Coming soon",
+            };
+          }
+        } catch (error) {
+          return {
+            ok: false,
+            error: error.message,
+            token: null,
+          };
+        }
+      },
+    },
+  };
+  
+  export default resolvers;
+  ```
+
+  - 흐름
+    - 만약 email에 해당하는 유저가 있다면 login 하도록 에러를 return
+    - 없다면 받은 args를 가지고 새로운 User를 생성
+  - newUser 정의 후 사용하지 않았기 때문에 에러 발생
+    - newUser를 이용해 JWT를 만들어 return 문의 token에 사용
 
