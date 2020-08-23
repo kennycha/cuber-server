@@ -1594,5 +1594,25 @@
       - token 암호화 및 해석에 필요한 키
       - [Strong Random Password Generator](https://passwordsgenerator.net/)
 
-  - 
+    ```typescript
+    import jwt from "jsonwebtoken";
+    
+    const createJWT = (id: number): string => {
+      const token = jwt.sign(
+        {
+          id,
+        },
+        process.env.JWT_TOKEN || ""
+      );
+      return token;
+    };
+    
+    export default createJWT;
+    ```
 
+## 2.41 Authenticating Users with Custom JWT
+
+- authentication 관련 Resolvers 들에 jwt를 적용
+  - user의 id를 받아와서, token을 생성
+  - return 객체의 token에 생성한 token을 적용
+- 
