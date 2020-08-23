@@ -15,7 +15,7 @@
 ### Authentication:
 
 - [x] Generate JWT
-- [ ] Verify JWT
+- [x] Verify JWT
 
 ---
 
@@ -1640,4 +1640,136 @@
 ## 2.45 Using Resolver Context for Authentication
 
 - middleware 에서 찾은 `user`를 어떻게 사용할 것인가
-  - 
+  - 찾은 user를 다시 `req` 객체 안에 넣어서 graphql server로
+  - `context`를 활용
+  - 모든 resolver에서 3번째 args에 해당하는 `context`를 사용해, context에 접근할 수 있음
+
+## 2.46 GetMyProfile Resolver
+
+- GetMyProfile.graphql
+
+  ```
+  type GetMyProfileResponse {
+    ok: Boolean!
+    error: String
+    user: User
+  }
+  
+  type Query {
+    GetMyProfile: GetMyProfileResponse!
+  }
+  ```
+
+- GetMyProfile Resolvers
+
+  - resolver의 context 안에 있는 user를 사용
+    - middleware에서 req의 헤더에 있는 토큰을 통해 user를 찾고 req.user에 할당
+    - graphql 시작 시, schema와 함께 context를 받고, 이때 req에 대해 req.request를 context에 담도록 설정
+
+  ```typescript
+  import { Resolvers } from "../../../types/resolvers";
+  
+  const resolvers: Resolvers = {
+    Query: {
+      GetMyProfile: async (_, __, { req }) => {
+        const { user } = req;
+        return {
+          ok: true,
+          error: null,
+          user,
+        };
+      },
+    },
+  };
+  
+  export default resolvers;
+  ```
+
+## 2.47 Protecting Resolvers with Middlewares
+
+- protect resolver
+
+  - 로그인 후 사용 가능한 기능들에 대해, user를 갖고 있지 못한 요청들을 거부하는 것
+
+  - `privateResolver` 를 거쳐서 context 내 user가 존재할 때만, 목표 Resolver를 호출하도록 구조
+
+    - `privateResolver`는 resolver 에 해당하는 function을 인자로 받아서 호출
+    - 개별 resolver 앞에 `if~else` 를 붙이는 구조와 동일한 결과
+
+  - 정의
+
+    ```typescript
+    // privateResolver.ts
+    
+    const privateResolver = (resolverFunction) => async (
+      parent,
+      args,
+      context,
+      info
+    ) => {
+      if (!context.req.user) {
+        throw new Error("No JWT. I refuse to proceed.");
+      }
+      const resolved = await resolverFunction(parent, args, context, info);
+      return resolved;
+    };
+    
+    export default privateResolver;
+    ```
+
+  - 적용
+
+    - resolver를 `privateResolver`의 인자로 넘겨줌
+
+    ```typescript
+    // GetMyProfile.resolvers.ts
+    
+    import { Resolvers } from "../../../types/resolvers";
+    import privateResolver from "../../../utils/privateResolver";
+    
+    const resolvers: Resolvers = {
+      Query: {
+        GetMyProfile: privateResolver(async (_, __, { req }) => {
+          const { user } = req;
+          return {
+            ok: true,
+            error: null,
+            user,
+          };
+        }),
+      },
+    };
+    
+    export default resolvers;
+    
+    ```
+
+- currying
+
+  - [Modern JS Ttutorial|Currying function](https://ko.javascript.info/currying-partials)
+  - [Blog|JS Currying](https://edykim.com/ko/post/writing-a-curling-currying-function-in-javascript/)
+
+- [babeljs.io|Try It Out]([https://babeljs.io/repl#?browsers=defaults%2C%20not%20ie%2011%2C%20not%20ie_mob%2011&build=&builtIns=false&spec=false&loose=false&code_lz=Q&debug=false&forceAllTransforms=false&shippedProposals=false&circleciRepo=&evaluate=false&fileSize=false&timeTravel=false&sourceType=module&lineWrap=true&presets=env%2Creact%2Cstage-2%2Cenv&prettier=false&targets=&version=7.11.4&externalPlugins=](https://babeljs.io/repl#?browsers=defaults%2C not ie 11%2C not ie_mob 11&build=&builtIns=false&spec=false&loose=false&code_lz=Q&debug=false&forceAllTransforms=false&shippedProposals=false&circleciRepo=&evaluate=false&fileSize=false&timeTravel=false&sourceType=module&lineWrap=true&presets=env%2Creact%2Cstage-2%2Cenv&prettier=false&targets=&version=7.11.4&externalPlugins=))
+
+  - code를 입력하면, compile 되기 전의 code를 보여줌
+
+  ```JS
+  // privateResolver.ts compile 전
+  // async/await 구문 제외한 코드
+  
+  var privateResolver = function privateResolver(resolverFunction) {
+    return function (parent, args, context, info) {
+      if (!context.req.user) {
+        throw new Error("No JWT. I refuse to proceed.");
+      }
+  
+      var resolved = resolverFunction(parent, args, context, info);
+      return resolved;
+    };
+  };
+  
+  var _default = privateResolver;
+  exports.default = _default;
+  ```
+
+  
