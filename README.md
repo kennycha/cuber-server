@@ -8,13 +8,13 @@
 - [x] Sing In with Email
 - [x] Starts Phone Number Verification
 - [x] Complete Phone Number Verification
-- [ ] Sign Up with Email
+- [x] Sign Up with Email
 
 ---
 
 ### Authentication:
 
-- [ ] Generate JWT
+- [x] Generate JWT
 - [ ] Verify JWT
 
 ---
@@ -1570,4 +1570,29 @@
     - 없다면 받은 args를 가지고 새로운 User를 생성
   - newUser 정의 후 사용하지 않았기 때문에 에러 발생
     - newUser를 이용해 JWT를 만들어 return 문의 token에 사용
+
+## 2.40 Creating Custom JWT
+
+- [jsonwebtoken](https://www.npmjs.com/package/jsonwebtoken)
+
+  - [velopert|JSON Web Token](https://velopert.com/2389)
+
+    - user가 API 서버로 request를 보낼 때, 함께 보내는 토큰
+
+  - 설치
+
+    ```bash
+    $ npm i jsonwebtoken
+    $ npm i @types/jsonwebtoken --save-dev
+    ```
+
+  - `payload`와 `secret key`를 담아서 `jwt.sign(payload, jwt)` method로 token 생성
+
+    - payload
+      - token에 담고 싶은 정보
+    - secret key
+      - token 암호화 및 해석에 필요한 키
+      - [Strong Random Password Generator](https://passwordsgenerator.net/)
+
+  - 
 
