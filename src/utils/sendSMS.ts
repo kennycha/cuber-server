@@ -2,7 +2,7 @@ import Twillo from "twilio";
 
 const twillioClient = Twillo(process.env.TWILIO_SID, process.env.TWILIO_TOKEN);
 
-export const sendSMS = (to: string, body: string) => {
+const sendSMS = (to: string, body: string) => {
   return twillioClient.messages.create({
     body,
     to,

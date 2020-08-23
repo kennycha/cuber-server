@@ -21,10 +21,9 @@
 
 ### Private Resolvers:
 
-- [ ] Generate JWT
-- [ ] Verify JWT
-- [ ] Verify Email
-- [ ] Get my Profile
+- [x] Get my Profile
+- [ ] Request Email Verification
+- [ ] Complete Email Verification
 - [ ] Update my Profile
 - [ ] Toggle Driving Mode
 - [ ] Report Location / Orientation
@@ -1772,4 +1771,99 @@
   exports.default = _default;
   ```
 
+## 2.48~50 Sending Confirmation Email
+
+- [mailgun](https://www.mailgun.com/)
+
+  - 이메일 전송 API
+
+  - [mailgun.js](https://www.npmjs.com/package/mailgun-js)
+
+  - 설치
+
+    ```bash
+    $ npm i mailgun-js
+    $ npm i @types/mailgun-js --save-dev
+    ```
+
+- `src/utils` 폴더 내에 sendEmail.ts 파일을 생성
+
+  - 이메일을 보내는 함수를 정의한 후
+  - EmailSignUp Resolvers에서 사용
+
+- sendEmail
+
+  ```typescript
+  // sendEmail.ts
   
+  import Mailgun from "mailgun-js";
+  
+  const mailGunClient = new Mailgun({
+    apiKey: process.env.MAILGUN_API_KEY || "",
+    domain: "sandboxd450e169c47441c482686592965902ce.mailgun.org",
+  });
+  
+  const sendEmail = (subject: string, html: string) => {
+    const emailData = {
+      from: "dudqn136@naver.com",
+      to: "dudqn136@naver.com",
+      subject,
+      html,
+    };
+    return mailGunClient.messages().send(emailData);
+  };
+  
+  export const sendVerificationEmail = (fullName: string, key: string) => {
+    const emailSubject = `Hello! ${fullName}, please verify your email`;
+    const emailBody = `Verify your email by clicking <a href="http://nuber.com/verification/${key}/>here</a>`;
+    return sendEmail(emailSubject, emailBody);
+  };
+  ```
+
+  - `apiKey`, `domain` 을 가진 mailGunClient 생성
+  - 해당 client로 `from`, `to`, `subject` , `html` 정보를 가진 메일을 전송
+
+- EmailSignUp Resolvers
+
+  ```typescript
+  // EmailSignUp.resovers.ts
+  
+  const resolvers: Resolvers = {
+    Mutation: {
+      EmailSignUp: async (
+        _,
+        args: EmailSignUpMutationArgs
+      ): Promise<EmailSignUpResponse> => {
+  	  // ...
+        if (phoneVerification) {
+          const newUser = await User.create({ ...args }).save();
+          if (newUser.email) {
+            const emailVerification = await Verification.create({
+              payload: newUser.email,
+              target: "EMAIL",
+            }).save();
+            await sendVerificationEmail(
+              newUser.fullName,
+              emailVerification.key
+            );
+          }
+          const token = createJWT(newUser.id);
+          return {
+            ok: true,
+            error: null,
+            token,
+          };
+        } else {
+          return {
+            ok: false,
+            error: "You haven't verified your phone number",
+            token: null,
+          };
+        }
+  	  // ...
+  export default resolvers
+  ```
+
+  - 이메일 가입 시, 해당 전화번호로 인증된 Verification이 있는 지 확인
+    - 있다면 입력받은 이메일로 인증 이메일을 전송
+    - 없다면, 전화번호 인증 되지 않았다는 error를 전송
