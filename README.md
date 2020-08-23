@@ -1615,4 +1615,29 @@
 - authentication 관련 Resolvers 들에 jwt를 적용
   - user의 id를 받아와서, token을 생성
   - return 객체의 token에 생성한 token을 적용
-- 
+- 해당 resolvers
+  - FacebookConnect
+  - EmailSignUp
+  - EmailSignIn
+  - CompletePhoneVerification
+
+## 2.42 Testing Authentication Resolvers
+
+## 2.43~44 Custom Auth Middleware on Express
+
+- custom middelware를 통해 JWT 열기
+  - request의 header에 있는 `X-JWT (변경 가능한 이름)` 에 접근해서, token에 들어있는 `id`를 얻음
+  - `id` 에 해당하는 `user`를 찾음
+- Express middleware 의 args
+  - express middleware 생성 시,  `req`, `res`, `next` 를 자동으로 받는다
+  - 각각 request, response, 다음 middleware 호출
+    - middleware 종료 시점에 `next()` 를 호출해줘야 한다
+- decodeJWT
+  - `jwt.verify()` method를 사용
+  - token과 secret key를 args로 받아서 검증
+    - token을 오픈한 객체를 return
+
+## 2.45 Using Resolver Context for Authentication
+
+- middleware 에서 찾은 `user`를 어떻게 사용할 것인가
+  - 

@@ -5,7 +5,7 @@ import {
 } from "../../../types/graph";
 import Verification from "../../../entities/Verification";
 import User from "../../../entities/User";
-import createJWT from "src/utils/createJWT";
+import createJWT from "../../../utils/createJWT";
 
 const resolvers: Resolvers = {
   Mutation: {
