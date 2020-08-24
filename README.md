@@ -25,7 +25,7 @@
 - [x] Request Email Verification
 - [x] Complete Email Verification
 - [x] Update my Profile
-- [ ] Toggle Driving Mode
+- [x] Toggle Driving Mode
 - [ ] Report Location / Orientation
 - [ ] Add Place
 - [ ] Edit Place
@@ -1954,7 +1954,14 @@
 - CompleteEmailVerification.graphql
 
   ```
+  type CompleteEmailVerificationResponse {
+    ok: Boolean!
+    error: String
+  }
   
+  type Mutation {
+    CompleteEmailVerification(key: String!): CompleteEmailVerificationResponse!
+  }
   ```
 
 - CompleteEmailVerification resolver
@@ -2152,4 +2159,93 @@
   }
   ```
 
+
+## 2.58 ReportMovement Resolver
+
+- cleanNullArgs
+
+  - null 값을 갖는 key들을 제외하는 기능을 따로 파일에 정의
+  - export 하여 재사용
+
+  ```typescript
+  const cleanNullArgs = (args: object): object => {
+    const notNull = {};
+    Object.keys(args).forEach((key) => {
+      if (args[key] !== null) {
+        notNull[key] = args[key];
+      }
+    });
+    return notNull;
+  };
   
+  export default cleanNullArgs;
+  ```
+
+- ReportMovement .graphql
+
+  ```
+  type ReportMovementResponse {
+    ok: Boolean!
+    error: String
+  }
+  
+  type Mutation {
+    ReportMovement(
+      orientation: Float
+      lat: Float
+      lng: Float
+    ): ReportMovementResponse!
+  }
+  ```
+
+- ReportMovement  resolver
+
+  - 흐름
+
+    - context에서 user를 읽어 옴
+    - args로 `orientation, lat, lng`를 받음
+    - null 값을 갖는 key들을 제외한 후 업데이트
+
+  - 코드
+
+    ```typescript
+    import { Resolvers } from "../../../types/resolvers";
+    import privateResolver from "../../../utils/privateResolver";
+    import {
+      ReportMovementMutationArgs,
+      ReportMovementResponse,
+    } from "../../../types/graph";
+    import User from "../../../entities/User";
+    import cleanNullArgs from "../../../utils/cleanNullArgs";
+    
+    const resolvers: Resolvers = {
+      Mutation: {
+        ReportMovement: privateResolver(
+          async (
+            _,
+            args: ReportMovementMutationArgs,
+            { req }
+          ): Promise<ReportMovementResponse> => {
+            const user: User = req.user;
+            const notNull = cleanNullArgs(args);
+            try {
+              await User.update({ id: user.id }, { ...notNull });
+              return {
+                ok: true,
+                error: null,
+              };
+            } catch (error) {
+              return {
+                ok: false,
+                error: error.message,
+              };
+            }
+          }
+        ),
+      },
+    };
+    
+    export default resolvers;
+    ```
+
+- 
