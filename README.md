@@ -1867,3 +1867,83 @@
   - 이메일 가입 시, 해당 전화번호로 인증된 Verification이 있는 지 확인
     - 있다면 입력받은 이메일로 인증 이메일을 전송
     - 없다면, 전화번호 인증 되지 않았다는 error를 전송
+
+## 2.51 Testing Email Sending
+
+## 2.52 RequestEmailVerification Resolver
+
+- RequestEmailVerification.graphql
+
+  - context의 token을 통해 email을 받아올 것이므로, args 를 갖지 않는다
+
+  ```
+  type RequestEmailVerificationResponse {
+    ok: Boolean!
+    error: String
+  }
+  
+  type Mutation {
+    RequestEmailVerification: RequestEmailVerificationResponse!
+  }
+  ```
+
+- RequestEmailVerification Resolver
+
+  - 흐름
+
+    - `privateResolver()` 를 거쳐서 호출
+    - context의 user에 접근해서 email을 받음
+    - 해당 email로 진행됐던 전화번호 인증 verification을 삭제한 후, email verification을 새로 생성
+    - sendVerificationEmail로 인증메일 발송
+
+  - 구현
+
+    ```typescript
+    import { Resolvers } from "../../../types/resolvers";
+    import privateResolver from "../../../utils/privateResolver";
+    import User from "../../../entities/User";
+    import Verification from "../../../entities/Verification";
+    import { sendVerificationEmail } from "../../../utils/sendEmail";
+    import { RequestEmailVerificationResponse } from "../../../types/graph";
+    
+    const resolvers: Resolvers = {
+      Mutation: {
+        RequestEmailVerification: privateResolver(
+          async (_, __, { req }): Promise<RequestEmailVerificationResponse> => {
+            const user: User = req.user;
+            if (user.email) {
+              try {
+                const oldVerification = await Verification.findOne({
+                  payload: user.email,
+                });
+                if (oldVerification) {
+                  oldVerification.remove();
+                }
+                const newVerification = await Verification.create({
+                  payload: user.email,
+                  target: "EMAIL",
+                }).save();
+                await sendVerificationEmail(user.fullName, newVerification.key);
+                return {
+                  ok: true,
+                  error: null,
+                };
+              } catch (error) {
+                return {
+                  ok: false,
+                  error: error.message,
+                };
+              }
+            } else {
+              return {
+                ok: false,
+                error: "Your user has no email to verify",
+              };
+            }
+          }
+        ),
+      },
+    };
+    
+    export default resolvers;
+    ```
