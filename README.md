@@ -2248,4 +2248,80 @@
     export default resolvers;
     ```
 
-- 
+## 2.59 AddPlace Resolver
+
+- AddPlace.graphql
+
+  ```
+  type AddPlaceResponse {
+    ok: Boolean!
+    error: String
+  }
+  
+  type Mutation {
+    AddPlace(
+      name: String!
+      lat: Float!
+      lng: Float!
+      address: String!
+      isFav: Boolean!
+    ): AddPlaceResponse!
+  }
+  ```
+
+- AddPlace resolver
+
+  - 변경
+
+    - User entity에 `places` 추가
+
+      ```typescript
+      @OneToMany((type) => Place, (place) => place.user)
+        places: Place[];
+      ```
+
+    - Place entity에 `user` 추가
+
+      ```typescript
+      @ManyToOne((type) => User, (user) => user.places)
+        user: User;
+      ```
+
+  - 코드
+
+    ```typescript
+    import privateResolver from "../../../utils/privateResolver";
+    import User from "../../../entities/User";
+    import Place from "../../../entities/Place";
+    import { Resolvers } from "../../../types/resolvers";
+    import { AddPlaceMutationArgs, AddPlaceResponse } from "../../../types/graph";
+    
+    const resolvers: Resolvers = {
+      Mutation: {
+        AddPlace: privateResolver(
+          async (
+            _,
+            args: AddPlaceMutationArgs,
+            { req }
+          ): Promise<AddPlaceResponse> => {
+            const user: User = req.user;
+            try {
+              await Place.create({ ...args, user }).save();
+              return {
+                ok: true,
+                error: null,
+              };
+            } catch (error) {
+              return {
+                ok: false,
+                error: error.message,
+              };
+            }
+          }
+        ),
+      },
+    };
+    
+    export default resolvers;
+    ```
+
