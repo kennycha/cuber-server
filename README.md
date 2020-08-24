@@ -22,8 +22,8 @@
 ### Private Resolvers:
 
 - [x] Get my Profile
-- [ ] Request Email Verification
-- [ ] Complete Email Verification
+- [x] Request Email Verification
+- [x] Complete Email Verification
 - [ ] Update my Profile
 - [ ] Toggle Driving Mode
 - [ ] Report Location / Orientation
@@ -1893,6 +1893,7 @@
 
     - `privateResolver()` 를 거쳐서 호출
     - context의 user에 접근해서 email을 받음
+      - 이때 해당 user의 verifiedEmail이 true라면 이미 인증이 완료된 상태이므로, 인증메일을 전송하지 않음
     - 해당 email로 진행됐던 전화번호 인증 verification을 삭제한 후, email verification을 새로 생성
     - sendVerificationEmail로 인증메일 발송
 
@@ -1911,7 +1912,7 @@
         RequestEmailVerification: privateResolver(
           async (_, __, { req }): Promise<RequestEmailVerificationResponse> => {
             const user: User = req.user;
-            if (user.email) {
+            if (user.email && !user.verifiedEmail) {
               try {
                 const oldVerification = await Verification.findOne({
                   payload: user.email,
@@ -1947,3 +1948,170 @@
     
     export default resolvers;
     ```
+
+## 2.53 CompleteEmailVerification Resolver
+
+- CompleteEmailVerification.graphql
+
+  ```
+  
+  ```
+
+- CompleteEmailVerification resolver
+
+  - 흐름
+
+    - user는 Request와 동일하게, context에서 받아와서 사용
+    - 
+
+  - 구현
+
+    ```typescript
+    import { Resolvers } from "../../../types/resolvers";
+    import privateResolver from "../../../utils/privateResolver";
+    import User from "../../../entities/User";
+    import Verification from "../../../entities/Verification";
+    import {
+      CompleteEmailVerificationMutationArgs,
+      CompleteEmailVerificationResponse,
+    } from "../../../types/graph";
+    
+    const resolvers: Resolvers = {
+      Mutation: {
+        CompleteEmailVerification: privateResolver(
+          async (
+            _,
+            args: CompleteEmailVerificationMutationArgs,
+            { req }
+          ): Promise<CompleteEmailVerificationResponse> => {
+            const user: User = req.user;
+            const { key } = args;
+            if (user.email) {
+              try {
+                const verification = await Verification.findOne({
+                  key,
+                  payload: user.email,
+                });
+                if (verification) {
+                  user.verifiedEmail = true;
+                  user.save();
+                  return {
+                    ok: true,
+                    error: null,
+                  };
+                } else {
+                  return {
+                    ok: false,
+                    error: "Can't verify email",
+                  };
+                }
+              } catch (error) {
+                return {
+                  ok: false,
+                  error: error.message,
+                };
+              }
+            } else {
+              return {
+                ok: false,
+                error: "No email to verify",
+              };
+            }
+          }
+        ),
+      },
+    };
+    
+    export default resolvers;
+    ```
+
+## 2.54 Testing Email Verification Resolvers
+
+## 2.55~56 UpdateMyProfile Resolver
+
+- UpdateMyProfile.graphql
+
+  ```
+  type UpdateMyProfileResponse {
+    ok: Boolean!
+    error: String
+  }
+  
+  type Mutation {
+    UpdateMyProfile(
+      firstName: String
+      lastName: String
+      email: String
+      password: String
+      profilePhoto: String
+      age: Int
+    ): UpdateMyProfileResponse!
+  }
+  ```
+
+- UpdateMyProfile resolver
+
+  ```typescript
+  import { Resolvers } from "../../../types/resolvers";
+  import privateResolver from "../../../utils/privateResolver";
+  import {
+    UpdateMyProfileMutationArgs,
+    UpdateMyProfileResponse,
+  } from "../../../types/graph";
+  import User from "../../../entities/User";
+  
+  const resolvers: Resolvers = {
+    Mutation: {
+      UpdateMyProfile: privateResolver(
+        async (
+          _,
+          args: UpdateMyProfileMutationArgs,
+          { req }
+        ): Promise<UpdateMyProfileResponse> => {
+          const user: User = req.user;
+          const notNull = {};
+          Object.keys(args).forEach((key) => {
+            if (args[key] !== null) {
+              notNull[key] = args[key];
+            }
+          });
+          try {
+            await User.update({ id: user.id }, { ...notNull });
+            return {
+              ok: true,
+              error: null,
+            };
+          } catch (error) {
+            return {
+              ok: false,
+              error: error.message,
+            };
+          }
+        }
+      ),
+    },
+  };
+  
+  export default resolvers;
+  ```
+
+  - null handling
+
+    - notNull 객체를 만들고, args 중 값이 null이 아닌 key와 값을 notNull에 저장한 후, notNull을 update에 넘겨주는 방식
+    - cf) User.update() 를 통한 업데이트는 인스턴스 존재 여부를 확인하지 않는다
+
+  - password hash 관련 handling
+
+    - User entity의 `@BeforeUpdate()` 를 trigger하기 위해서는, User.update() 를 사용하면 안된다
+    - User entity의 인스턴스인 user를 update해야 정상적으로 trigger 가능하다
+    - password 변경의 경우에는 user 인스턴스를 직접 바꾸도록 분기
+
+    ```typescript
+    if (args.password !== null) {
+      user.password = args.password;
+      user.save();
+    }
+    ```
+
+## 2.57 ToggleDrivingMode Resolver
+
