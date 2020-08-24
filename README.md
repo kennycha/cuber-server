@@ -24,7 +24,7 @@
 - [x] Get my Profile
 - [x] Request Email Verification
 - [x] Complete Email Verification
-- [ ] Update my Profile
+- [x] Update my Profile
 - [ ] Toggle Driving Mode
 - [ ] Report Location / Orientation
 - [ ] Add Place
@@ -2115,3 +2115,41 @@
 
 ## 2.57 ToggleDrivingMode Resolver
 
+- `toggleDrivingMode` and `Report Location / Orientation` 
+
+  - User에 관한 내용이므로 UpdateMyProfile resolver를 통해 변경도 가능
+  - 하지만, 두 가지 기능은 `publish notifications` 를 포함해야 하고, 자칫 UpdateMyProfile resolver의 크기를 지나치게 크게 만들 수 있으므로 따로 resolver를 정의
+
+- ToggleDrivingMode.graphql
+
+  ```
+  type ToggleDrivingModeResponse {
+    ok: Boolean!
+    error: String
+  }
+  
+  type Mutation {
+    ToggleDrivingMode: ToggleDrivingModeResponse!
+  }
+  ```
+
+- ToggleDrivingMode resolver
+
+  - context에 있는 user의 `isDriving`을 현재 값의 반대로 변경 후 저장
+
+  ```typescript
+  
+  ```
+
+- cf) Auto import relative path with typescript
+
+  ```json
+  // settings.json
+  {
+      // ...
+      "typescript.preferences.importModuleSpecifier": "relative"
+      // ...
+  }
+  ```
+
+  
