@@ -26,10 +26,11 @@
 - [x] Complete Email Verification
 - [x] Update my Profile
 - [x] Toggle Driving Mode
-- [ ] Report Location / Orientation
-- [ ] Add Place
+- [x] Report Location / Orientation
+- [x] Add Place
 - [ ] Edit Place
 - [ ] Delete Place
+- [ ] Get My Places
 - [ ] See Nearby Drivers
 - [ ] Subscribe to Nearby Drivers
 - [ ] Request a Ride
@@ -2325,3 +2326,105 @@
     export default resolvers;
     ```
 
+## 2.60 EditPlace Resolver
+
+- EditPlace.graphql
+
+  ```
+  type EditPlaceResponse {
+    ok: Boolean!
+    error: String
+  }
+  
+  type Mutation {
+    EditPlace(placeId: Int!, name: String, isFav: Boolean): EditPlaceResponse!
+  }
+  ```
+
+- EditPlace resolver
+
+  - 흐름
+
+    - args 에 담긴 placeId로 Place 인스턴스를 탐색
+    - 있으면 place의 userId와 현재 context에 담긴 (request를 보낸) user의 id가 같은지 비교
+    - 같다면 EditPlace 진행
+
+  - 코드
+
+    ```typescript
+    import { Resolvers } from "../../../types/resolvers";
+    import privateResolver from "../../../utils/privateResolver";
+    import User from "../../../entities/User";
+    import Place from "../../../entities/Place";
+    import { EditPlaceMutationArgs, EditPlaceResponse } from "../../../types/graph";
+    import cleanNullArgs from "../../../utils/cleanNullArgs";
+    
+    const resolvers: Resolvers = {
+      Mutation: {
+        EditPlace: privateResolver(
+          async (
+            _,
+            args: EditPlaceMutationArgs,
+            { req }
+          ): Promise<EditPlaceResponse> => {
+            const user: User = req.user;
+            try {
+              const place = await Place.findOne({ id: args.placeId });
+              if (place) {
+                if (place.userId === user.id) {
+                  const notNull = cleanNullArgs(args);
+                  await Place.update({ id: args.placeId }, { ...notNull });
+                  return {
+                    ok: true,
+                    error: null,
+                  };
+                } else {
+                  return {
+                    ok: false,
+                    error: "Not authorized",
+                  };
+                }
+              } else {
+                return {
+                  ok: false,
+                  error: "Place not found",
+                };
+              }
+            } catch (error) {
+              return {
+                ok: false,
+                error: error.message,
+              };
+            }
+          }
+        ),
+      },
+    };
+    
+    export default resolvers;
+    
+    ```
+
+  - typeorm short-cut for `id`
+
+    ```typescript
+    // Place.ts
+    
+    @Column({ nullable: true })
+      userId: number;
+    
+    @ManyToOne((type) => User, (user) => user.places)
+      user: User;
+    ```
+
+    - typeorm은 place 인스턴스를 불러올 때,  relations를 자동으로 함께 불러오지 않는다
+
+    - 원래는 아래와 같이 findOne의 두번째 인자로 relations 정보를 넘겨줘야 한다
+
+      ```typescript
+      const place = await Place.findOne({ id: args.placeId }, { relations: ["user"] })
+      ```
+
+    - 하지만 위의 방식은, userId 와 같은 하나의 필드값을 가져오기 위해 수많은 쓰지않을 필드들을 함께 가져온다
+
+    - Entity 정의 시, relation column을 정의한 후, 해당 Column 뒤에 `Id`를 붙이고 위와 같이 정의하면 자동으로 해당 Column의 id로 연동된다
