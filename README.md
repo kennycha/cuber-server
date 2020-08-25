@@ -28,9 +28,9 @@
 - [x] Toggle Driving Mode
 - [x] Report Location / Orientation
 - [x] Add Place
-- [ ] Edit Place
-- [ ] Delete Place
-- [ ] Get My Places
+- [x] Edit Place
+- [x] Delete Place
+- [x] Get My Places
 - [ ] See Nearby Drivers
 - [ ] Subscribe to Nearby Drivers
 - [ ] Request a Ride
@@ -2583,4 +2583,50 @@
     export default resolvers;
     ```
 
-    
+## 2.63~64 GetNearbyDrivers
+
+- GetNearbyDrivers.graphql
+
+  ```
+  type GetNearbyDriversResponse {
+    ok: Boolean!
+    error: String
+    drivers: [User]
+  }
+  
+  type Query {
+    GetNearbyDrivers: GetNearbyDriversResponse!
+  }
+  ```
+
+- GetNearbyDrivers resolver
+
+  - 흐름
+
+    - request를 보낸 user의 `lastLat`, `lastLng`에 `+/-0.05` 이내에 있는 운전중인 User entity들
+
+  - [typeorm find options](https://typeorm.io/#/find-options)
+
+    - `Between` of typeorm
+
+      - 위 내 값을 갖는 경우를 탐색할 때
+
+    - [active record vs data mapper](https://orkhan.gitbook.io/typeorm/docs/active-record-data-mapper#what-is-the-data-mapper-pattern)
+
+      - [active record pattern](https://orkhan.gitbook.io/typeorm/docs/active-record-data-mapper#what-is-the-active-record-pattern)
+        - `BaseEntity` 를 extends하여 entity 정의
+        - 현재 project 의 entity 정의 시 사용한 방법
+      - [data mapper pattern](https://orkhan.gitbook.io/typeorm/docs/active-record-data-mapper#what-is-the-data-mapper-pattern)
+        - `repository` 를 사용
+      - operator는 Active Record에서 작동하지 않는다
+        - `getRepository` 와 `getConnection`을 통해 해결
+
+      ```typescript
+      const drivers = await getRepository(User).find({
+        isDriving: true,
+        lastLat: Between(lastLat - 0.05, lastLat + 0.05),
+        lastLng: Between(lastLng - 0.05, lastLng + 0.05),
+      });
+      ```
+
+  - 코드
