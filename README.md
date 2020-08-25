@@ -2630,3 +2630,163 @@
       ```
 
   - 코드
+
+    ```typescript
+    import { Resolvers } from "../../../types/resolvers";
+    import privateResolver from "../../../utils/privateResolver";
+    import User from "../../../entities/User";
+    import { GetNearbyDriversResponse } from "../../../types/graph";
+    import { Between, getRepository } from "typeorm";
+    
+    const resolvers: Resolvers = {
+      Query: {
+        GetNearbyDrivers: privateResolver(
+          async (_, __, { req }): Promise<GetNearbyDriversResponse> => {
+            const user: User = req.user;
+            const { lastLat, lastLng } = user;
+            try {
+              const drivers: User[] = await getRepository(User).find({
+                isDriving: true,
+                lastLat: Between(lastLat - 0.05, lastLat + 0.05),
+                lastLng: Between(lastLng - 0.05, lastLng + 0.05),
+              });
+              return {
+                ok: true,
+                error: null,
+                drivers,
+              };
+            } catch (error) {
+              return {
+                ok: false,
+                error: error.message,
+                drivers: null,
+              };
+            }
+          }
+        ),
+      },
+    };
+    
+    export default resolvers;
+    ```
+
+## 2.65~66 DriversSubscription resolver
+
+- [subscriptions](https://www.apollographql.com/docs/apollo-server/data/subscriptions/)
+
+  - 계속 주시하다가 변화가 생기는 경우에 확인
+  - `PubSub` 을 사용해 subscription 서버 생성
+    - cf) publish subscription
+
+  ```typescript
+  // app.ts
+  
+  class App {
+    public app: GraphQLServer;
+    public pubSub: any;
+    constructor() {
+      this.pubSub = new PubSub();
+      this.pubSub.ee.setMaxListeners(99);
+      // ...
+    }
+  }
+  
+  export default new App().app;
+  ```
+
+  - PubSub은 데모버전과 같다
+
+    - 제품화 단계에서는 [Redes](https://redis.io/topics/pubsub)나 [Memcached](https://memcached.org/) 같은 걸 사용해야 한다
+    - [참고|Redis vs Memcached](https://americanopeople.tistory.com/148)
+
+  - context에 PubSub 인스턴스인 `pubSub` 을 넣어주고 필요한 resolver에서 받아서 사용
+
+    ```typescript
+    // app.ts
+    
+    class App {
+      //...
+      this.app = new GraphQLServer({
+          schema,
+          context: req => {
+              return {
+                  req: req.request,
+                  pubSub: this.pubSub
+              }
+          }
+      })
+      //...
+    }
+    
+    export default new App().app;
+    ```
+
+- DriversSubscription.graphql
+
+  ```
+  type Subscription {
+    DriversSubscription: User
+  }
+  ```
+
+- DriversSubscription Resolver
+
+  - 흐름
+
+    - context에 있는 PubSub 인스턴스를 받아옴
+    - 받아온 pubSub의 asyncIterator를 return
+      - 이때 subscribe할 채널을 넣어서 return
+      - ex) driverUpdate
+
+  - 코드
+
+    ```typescript
+    const resolvers = {
+      Subscription: {
+        DriversSubscription: {
+          subscribe: (_, __, { pubSub }) => {
+            return pubSub.asyncIterator("driverUpdate");
+          },
+        },
+      },
+    };
+    
+    export default resolvers;
+    ```
+
+- ReportMovement resolver 변경
+
+  - context에 있는 pubSub을 받음
+
+  - User의 위치가 변경되었을 때, driverUpdate 채널로 publish
+
+    - publish하면 listening 중이던 resolver 에서 감지하고 payload를 받음
+    - cf) 이때, 해당 User가 현재 채팅에 참여하고 있는 User인지 filtering 해야한다(Authenticating Subscription)
+
+  - publish()는 두가지 인자를 받는다
+
+    - 첫번째는 publish할 채널
+    - 두번째는 payload (보낼 데이터)
+      - 이때 payload는 graphql 파일에서 정의한 `type Subscription` 안의 이름과 일치해야 한다
+
+    ```typescript
+    // ReportMovement.resolvers.ts
+    
+    const resolvers: Resolvers = {
+      Mutation: {
+        ReportMovement: privateResolver(
+        // ...
+        await User.update({ id: user.id }, { ...notNull });
+        pubSub.publish("driverUpdate", { DriversSubscription: user });
+        // ...
+        )
+      }
+    }
+    export default resolvers
+    ```
+
+  ## 2.67 Authentication WebSocket Subscription
+
+  
+
+  
