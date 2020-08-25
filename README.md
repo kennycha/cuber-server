@@ -2428,3 +2428,159 @@
     - 하지만 위의 방식은, userId 와 같은 하나의 필드값을 가져오기 위해 수많은 쓰지않을 필드들을 함께 가져온다
 
     - Entity 정의 시, relation column을 정의한 후, 해당 Column 뒤에 `Id`를 붙이고 위와 같이 정의하면 자동으로 해당 Column의 id로 연동된다
+
+## 2.61 DeletePlace Resolver
+
+- DeletePlace.graphql
+
+  ```
+  type DeletePlaceResponse {
+    ok: Boolean!
+    error: String
+  }
+  
+  type Mutation {
+    DeletePlace(placeId: Int!): DeletePlaceResponse!
+  }
+  ```
+
+- DeletePlace resovler
+
+  - 흐름
+
+    - placeId를 받아와서 해당하는 place가 있는지 확인
+    - 있다면 request를 보낸 user의 id와 place의 userId가 동일한지 확인
+    - 동일하다면 삭제
+
+  - 코드
+
+    ```typescript
+    import { Resolvers } from "../../../types/resolvers";
+    import privateResolver from "../../../utils/privateResolver";
+    import User from "../../../entities/User";
+    import Place from "../../../entities/Place";
+    import {
+      DeletePlaceMutationArgs,
+      DeletePlaceResponse,
+    } from "../../../types/graph";
+    
+    const resolvers: Resolvers = {
+      Mutation: {
+        DeletePlace: privateResolver(
+          async (
+            _,
+            args: DeletePlaceMutationArgs,
+            { req }
+          ): Promise<DeletePlaceResponse> => {
+            const user: User = req.user;
+            try {
+              const place = await Place.findOne({ id: args.placeId });
+              if (place) {
+                if (place.userId === user.id) {
+                  place.remove();
+                  return {
+                    ok: true,
+                    error: null,
+                  };
+                } else {
+                  return {
+                    ok: false,
+                    error: "Not authorized",
+                  };
+                }
+              } else {
+                return {
+                  ok: false,
+                  error: "Place not found",
+                };
+              }
+            } catch (error) {
+              return {
+                ok: true,
+                error: error.message,
+              };
+            }
+          }
+        ),
+      },
+    };
+    
+    export default resolvers;
+    ```
+
+## 2.62 GetMyPlaces Resolver and Testing
+
+- GetMyPlaces.graphql
+
+  ```
+  type GetMyPlacesResponse {
+    ok: Boolean!
+    error: String
+    places: [Place]
+  }
+  
+  type Query {
+    GetMyPlaces: GetMyPlacesResponse!
+  }
+  ```
+
+- GetMyPlaces resolver
+
+  - 흐름
+
+    - request보내는 user의 id를 받아와서, 해당 User 인스턴스를 다시 불러온다
+
+    - 이는 places를 relations에 추가해서 받아오기 위함
+
+      ```typescript
+      const user = await User.findOne({ id: req.user.id }, { relations: ["places"] });
+      ```
+
+    - places를 포함한 user가 있다면 리턴
+
+  - 코드
+
+    ```typescript
+    import { Resolvers } from "../../../types/resolvers";
+    import privateResolver from "../../../utils/privateResolver";
+    import { GetMyPlacesResponse } from "../../../types/graph";
+    import User from "../../../entities/User";
+    
+    const resolvers: Resolvers = {
+      Query: {
+        GetMyPlaces: privateResolver(
+          async (_, __, { req }): Promise<GetMyPlacesResponse> => {
+            try {
+              const user = await User.findOne(
+                { id: req.user.id },
+                { relations: ["places"] }
+              );
+              if (user) {
+                return {
+                  ok: true,
+                  error: null,
+                  places: user.places,
+                };
+              } else {
+                return {
+                  ok: false,
+                  error: "User not found",
+                  places: null,
+                };
+              }
+            } catch (error) {
+              return {
+                ok: false,
+                error: error.message,
+                places: null,
+              };
+            }
+          }
+        ),
+      },
+    };
+    
+    export default resolvers;
+    ```
+
+    
