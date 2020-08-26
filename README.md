@@ -2670,7 +2670,7 @@
     export default resolvers;
     ```
 
-## 2.65~66 DriversSubscription resolver
+## 2.65~66 DriversSubscription
 
 - [subscriptions](https://www.apollographql.com/docs/apollo-server/data/subscriptions/)
 
@@ -2785,8 +2785,49 @@
     export default resolvers
     ```
 
-  ## 2.67 Authentication WebSocket Subscription
 
-  
+## 2.67~68 Authentication WebSocket Subscription
 
-  
+- `appOptions` for subscription
+
+  - [Apollo GraphQL | Authentication Over WebSocket](https://www.apollographql.com/docs/graphql-subscriptions/authentication/)
+
+  - subscription 시작 될 때, 몇가지 커스터마이즈가 가능
+
+    - `onConnect`에 함수를 넘겨줌
+
+  - 인증 완료시 서버 메모리가 기억할 수 있도록 connect
+
+  - `connectionParams`를 통해 JWT 토큰을 받아와서 decode하는 과정을 추가
+
+    - middleware와 비슷하지만, http 통신이 아닌, WebSocket connection을 위한 과정
+
+  - `onConnect`에서 return 하는 객체 안의 `currentUser`값이 `req.connection.context`에 저장 됨
+
+    - 이걸 다시 app context 에 넣어줘서 사용
+
+    ```typescript
+    // index.ts
+    
+    const appOptions: Options = {
+      // ...
+      subscriptions: {
+        path: SUBSCRIPTION_ENDPOINT,
+        onConnect: async (connectionParams) => {
+          const token = connectionParams["X-JWT"];
+          if (token) {
+            const user = await decodeJWT(token);
+            return {
+              currentUser: user,
+            };
+          } else {
+            return {
+              currentUser: null,
+            };
+          }
+        },
+      },
+    };
+    ```
+
+    
