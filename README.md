@@ -31,8 +31,8 @@
 - [x] Edit Place
 - [x] Delete Place
 - [x] Get My Places
-- [ ] See Nearby Drivers
-- [ ] Subscribe to Nearby Drivers
+- [x] See Nearby Drivers
+- [x] Subscribe to Nearby Drivers
 - [ ] Request a Ride
 - [ ] Get Nearby Ride Requests
 - [ ] Subscribe to Nearby Ride Requests
@@ -2193,8 +2193,8 @@
   type Mutation {
     ReportMovement(
       orientation: Float
-      lat: Float
-      lng: Float
+      lastLat: Float
+      lastLng: Float
     ): ReportMovementResponse!
   }
   ```
@@ -2830,4 +2830,69 @@
     };
     ```
 
+## 2.69 Filtering Subscription Messages 
+
+- 알림을 보낼 driver 들을 필터링
+
+  - 채널로 보내는 알림을 막지는 못한다
+  - 유저가 채널로부터 알림을 받을 것인지 여부에 따라 필터링
+
+- `withFilter`를 사용
+
+  - [Apollo graphql | Filter Subscriptions](https://www.apollographql.com/docs/graphql-subscriptions/setup/#filter-subscriptions)
+  - 첫번째 인자로는 `asyncIteratorFn`을, 두번째 인자로는 `filterFn`을 받는다
+    - filterFn의 return 값이 true / false인지에 따라 필터링
+  - request를 보내는 user와, 알림을 보내는 driver에 해당하는 user의 lastLat과 lastLng을 비교해서 가까이 있는지 판단
+    - 이때 user의 정보는 context에서, driver의 정보는 payload에서 가져온다
+
+- ```typescript
+  // DriverSubscription.resolvers.ts
+  
+  import { withFilter } from "graphql-yoga";
+  import User from "../../../entities/User";
+  
+  const resolvers = {
+    Subscription: {
+      DriversSubscription: {
+        subscribe: withFilter(
+          (_, __, { pubSub }) => pubSub.asyncIterator("driverUpdate"),
+          (payload, _, { context }) => {
+            const user: User = context.currentUser;
+            const {
+              DriversSubscription: {
+                lastLat: driverLastLat,
+                lastLng: driverLastLng,
+              },
+            } = payload;
+            const { lastLat: userLastLat, lastLng: userLastLng } = user;
+            return (
+              driverLastLat >= userLastLat - 0.05 &&
+              driverLastLat <= userLastLat + 0.05 &&
+              driverLastLng >= userLastLng - 0.05 &&
+              driverLastLng <= userLastLng + 0.05
+            );
+          }
+        ),
+      },
+    },
+  };
+  
+  export default resolvers;
+  ```
+
+- error fix
+
+  - ReportMovement  resolver에서, user 정보 업데이트 후 업데이트 된 유저가 아닌 이전 유저를 그대로 사용
+
+  - 업데이트 한 후 user.id를 통해 다시 findOne해서 가져와서 사용 (채널에 publish)
+
+    ```typescript
+    // ReportMovement.resolvers.ts
     
+    await User.update({ id: user.id }, { ...notNull });
+    const updatedUser = await User.findOne({ id: user.id });
+    pubSub.publish("driverUpdate", { DriversSubscription: updatedUser });
+    ```
+
+    
+
