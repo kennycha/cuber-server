@@ -2830,7 +2830,7 @@
     };
     ```
 
-## 2.69 Filtering Subscription Messages 
+## 2.69~70 Filtering Subscription Messages 
 
 - 알림을 보낼 driver 들을 필터링
 
@@ -2894,5 +2894,107 @@
     pubSub.publish("driverUpdate", { DriversSubscription: updatedUser });
     ```
 
+
+## 2. 71 RequestRide Resolver
+
+- Ride entity 수정
+
+  - `status` column에 default로 `"Requesting"` 부여
+
+    - Ride 생성되는 경우는 Request하는 경우이기 때문
+
+      ```typescript
+      @Column({
+        type: "text",
+        enum: ["ACCEPTED", "FINISHED", "CANCELED", "REQUESTING", "ONROUTE"],
+        default: "REQUESTING",
+      })
+      status: rideStatus;
+      ```
+
+  - `driver` column에 `nullable: true` 속성 부여
+
+    - 요청이 승낙되기 전에는 driver가 비어있기 때문
+
+      ```typescript
+      @ManyToOne((type) => User, (user) => user.ridesAsDriver, { nullable: true })
+      driver: User
+      ```
+
+- RequestRide.graphql
+
+  ```
+  type RequestRideResponse {
+    ok: Boolean!
+    error: String
+    ride: Ride
+  }
+  
+  type Mutation {
+    RequestRide(
+      pickUpAddress: String!
+      pickUpLat: Float!
+      pickUpLng: Float!
+      dropOffAddress: String!
+      dropOffLat: Float!
+      dropOffLng: Float!
+      price: Float!
+      distance: String!
+      duration: String!
+    ): RequestRideResponse!
+  }
+  ```
+
+- RequestRide resolver
+
+  - 흐름
+
+    - 필요한 정보들을 args로 받아옴
+    - context에서 request를 보내는 user를 받아옴
+    - 정보들을 가지고 Ride 인스턴스 생성
+
+  - 코드
+
+    ```typescript
+    import { Resolvers } from "../../../types/resolvers";
+    import privateResolver from "../../../utils/privateResolver";
+    import {
+      RequestRideMutationArgs,
+      RequestRideResponse,
+    } from "../../../types/graph";
+    import User from "../../../entities/User";
+    import Ride from "../../../entities/Ride";
     
+    const resolvers: Resolvers = {
+      Mutation: {
+        RequestRide: privateResolver(
+          async (
+            _,
+            args: RequestRideMutationArgs,
+            { req }
+          ): Promise<RequestRideResponse> => {
+            const user: User = req.user;
+            try {
+              const ride = await Ride.create({ ...args, passenger: user }).save();
+              return {
+                ok: true,
+                error: null,
+                ride,
+              };
+            } catch (error) {
+              return {
+                ok: false,
+                error: error.message,
+                ride: null,
+              };
+            }
+          }
+        ),
+      },
+    };
+    
+    export default resolvers;
+    ```
+
+## 2.72 GetNearbyRides Resolver
 
