@@ -2895,7 +2895,7 @@
     ```
 
 
-## 2. 71 RequestRide Resolver
+## 2.71 RequestRide Resolver
 
 - Ride entity 수정
 
@@ -2998,3 +2998,75 @@
 
 ## 2.72 GetNearbyRides Resolver
 
+- GetNearbyRides.graphql
+
+  ```
+  type GetNearbyRidesResponse {
+    ok: Boolean!
+    error: String
+    rides: [Ride]
+  }
+  
+  type Query {
+    GetNearbyRides: GetNearbyRidesResponse!
+  }
+  ```
+
+- GetNearbyRides resolver
+
+  - 흐름
+
+    - request를 보낸 user가 driver일 때 (`isDriving`이 true일때)
+    - Ride 인스턴스 중 status가 `"REQUESTING"`이고, driver의 현재 위치와 가까이 있는 인스턴스들을 읽어 옴
+
+  - 코드
+
+    ```typescript
+    import { Resolvers } from "../../../types/resolvers";
+    import privateResolver from "../../../utils/privateResolver";
+    import { GetNearbyRidesResponse } from "../../../types/graph";
+    import User from "../../../entities/User";
+    import { getRepository, Between } from "typeorm";
+    import Ride from "../../../entities/Ride";
+    
+    const resolvers: Resolvers = {
+      Query: {
+        GetNearbyRides: privateResolver(
+          async (_, __, { req }): Promise<GetNearbyRidesResponse> => {
+            const user: User = req.user;
+            if (user.isDriving) {
+              const { lastLat, lastLng } = user;
+              try {
+                const rides = await getRepository(Ride).find({
+                  status: "REQUESTING",
+                  pickUpLat: Between(lastLat - 0.05, lastLat + 0.05),
+                  pickUpLng: Between(lastLng - 0.05, lastLng + 0.05),
+                });
+                return {
+                  ok: true,
+                  error: null,
+                  rides,
+                };
+              } catch (error) {
+                return {
+                  ok: false,
+                  error: error.message,
+                  rides: null,
+                };
+              }
+            } else {
+              return {
+                ok: false,
+                error: "You are not a driver",
+                rides: null,
+              };
+            }
+          }
+        ),
+      },
+    };
+    
+    export default resolvers;
+    ```
+
+    
