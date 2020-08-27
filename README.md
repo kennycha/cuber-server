@@ -37,6 +37,7 @@
 - [x] Get Nearby Ride Requests
 - [x] Subscribe to Nearby Ride Requests
 - [ ] Update Ride Status
+- [ ] Get Ride
 - [ ] Subscribe to Ride Status
 - [ ] Get Chat Room Messages
 - [ ] Subscribe to Chat Room Messages
@@ -3174,4 +3175,119 @@
   }
   ```
 
+## 2.75~76 UpdateRideStatus Resolver
+
+- UpdateRideStatus.graphql
+
+  - [graphql enum](https://graphql-kr.github.io/learn/schema/#)
+    - 열거형 타입
+    - 주어진 선택지 내의 값만 가질 수 있다
+
+  ```
+  type UpdateRideStatusResponse {
+    ok: Boolean!
+    error: String
+  }
   
+  enum StatusOptions {
+    ACCEPTED
+    FINISHED
+    CANCELED
+    REQUESTING
+    ONROUTE
+  }
+  
+  type Mutation {
+    UpdateRideStatus(
+      rideId: Int!
+      status: StatusOptions!
+    ): UpdateRideStatusResponse!
+  }
+  ```
+
+- UpdateRideStatus resolver
+
+  - 흐름
+
+    - ridestatus를 변경하는 주체는 driver
+      - req.user의 isDriving 이 true 일 때만 정상 진행
+    - request를 수락하려고 한다면 ('ACCEPTED'로 바꾸려고 한다면), rideId를 통해 status가 'REQUESTING'인 Ride 인스턴스를 찾음
+      - 수락하는 경우, ride의 driver에 user를 할당
+      - user의 isTaken을 true로 변경
+    - 이미 request가 수락된 상태라면(그 외의 태로 바꾸려고 한다면, rideId를 통해 driver가 req.user인 Ride 인스턴스를 찾음 
+    - 찾은 Ride 인스턴스의 status를 args에 담긴 status로 변경
+
+  - 코드
+
+    ```typescript
+    import { Resolvers } from "../../../types/resolvers";
+    import privateResolver from "../../../utils/privateResolver";
+    import User from "../../../entities/User";
+    import {
+      UpdateRideStatusMutationArgs,
+      UpdateRideStatusResponse,
+    } from "../../../types/graph";
+    import Ride from "../../../entities/Ride";
+    
+    const resolvers: Resolvers = {
+      Mutation: {
+        UpdateRideStatus: privateResolver(
+          async (
+            _,
+            args: UpdateRideStatusMutationArgs,
+            { req }
+          ): Promise<UpdateRideStatusResponse> => {
+            const user: User = req.user;
+            if (user.isDriving) {
+              try {
+                let ride: Ride | undefined;
+                if (args.status === "ACCEPTED") {
+                  ride = await Ride.findOne({
+                    id: args.rideId,
+                    status: "REQUESTING",
+                  });
+                  if (ride) {
+                    ride.driver = user;
+                    user.isTaken = true;
+                    user.save();
+                  }
+                } else {
+                  ride = await Ride.findOne({
+                    id: args.rideId,
+                    driver: user,
+                  });
+                }
+                if (ride) {
+                  ride.status = args.status;
+                  ride.save();
+                  return {
+                    ok: true,
+                    error: null,
+                  };
+                } else {
+                  return {
+                    ok: false,
+                    error: "Can't update ride",
+                  };
+                }
+              } catch (error) {
+                return {
+                  ok: false,
+                  error: error.message,
+                };
+              }
+            } else {
+              return {
+                ok: false,
+                error: "You are not driving",
+              };
+            }
+          }
+        ),
+      },
+    };
+    
+    export default resolvers;
+    ```
+
+    
