@@ -33,9 +33,10 @@
 - [x] Get My Places
 - [x] See Nearby Drivers
 - [x] Subscribe to Nearby Drivers
-- [ ] Request a Ride
-- [ ] Get Nearby Ride Requests
-- [ ] Subscribe to Nearby Ride Requests
+- [x] Request a Ride
+- [x] Get Nearby Ride Requests
+- [x] Subscribe to Nearby Ride Requests
+- [ ] Update Ride Status
 - [ ] Subscribe to Ride Status
 - [ ] Get Chat Room Messages
 - [ ] Subscribe to Chat Room Messages
@@ -2996,15 +2997,15 @@
     export default resolvers;
     ```
 
-## 2.72 GetNearbyRides Resolver
+## 2.72 GetNearbyRide Resolver
 
-- GetNearbyRides.graphql
+- GetNearbyRide.graphql
 
   ```
   type GetNearbyRidesResponse {
     ok: Boolean!
     error: String
-    rides: [Ride]
+    ride: Ride
   }
   
   type Query {
@@ -3012,12 +3013,13 @@
   }
   ```
 
-- GetNearbyRides resolver
+- GetNearbyRide resolver
 
   - 흐름
 
     - request를 보낸 user가 driver일 때 (`isDriving`이 true일때)
-    - Ride 인스턴스 중 status가 `"REQUESTING"`이고, driver의 현재 위치와 가까이 있는 인스턴스들을 읽어 옴
+    - Ride 인스턴스 중 status가 `"REQUESTING"`이고, driver의 현재 위치와 가까이 있는 인스턴스를 읽어 옴
+    - 찾지 못해로 따로 error를 return하지는 않는다
 
   - 코드
 
@@ -3037,28 +3039,36 @@
             if (user.isDriving) {
               const { lastLat, lastLng } = user;
               try {
-                const rides = await getRepository(Ride).find({
+                const ride = await getRepository(Ride).findOne({
                   status: "REQUESTING",
                   pickUpLat: Between(lastLat - 0.05, lastLat + 0.05),
                   pickUpLng: Between(lastLng - 0.05, lastLng + 0.05),
                 });
-                return {
-                  ok: true,
-                  error: null,
-                  rides,
-                };
+                if (ride) {
+                  return {
+                    ok: true,
+                    error: null,
+                    ride,
+                  };
+                } else {
+                  return {
+                    ok: true,
+                    error: null,
+                    ride: null,
+                  };
+                }
               } catch (error) {
                 return {
                   ok: false,
                   error: error.message,
-                  rides: null,
+                  ride: null,
                 };
               }
             } else {
               return {
                 ok: false,
                 error: "You are not a driver",
-                rides: null,
+                ride: null,
               };
             }
           }
@@ -3069,4 +3079,99 @@
     export default resolvers;
     ```
 
+## 2.73 NearbyRideSubscription
+
+- NearbyRideSubscription.graphql
+
+  ```
+  type Subscription {
+    NearbyRideSubscription: Ride
+  }
+  ```
+
+- RequestRide resolver 수정
+
+  - 새로운 Ride entity 생성 시 `"rideRequest"` 채널로 알림
+
+    ```typescript
+    // RequestRide.resolvers.ts
     
+    const ride = await Ride.create({ ...args, passenger: user }).save();
+    pubSub.publish("rideRequest", { NearbyRideSubscription: ride });
+    ```
+
+- NearbyRideSubscription resolver
+
+  - 흐름
+
+    - withFilter를 통해, 요청을 보내는 user(`driver`) 의 위치와 가까이 있는 `pickUpLat`, `pickUpLng` 을 가진 Ride entity에 대한 알림을 받음
+
+  - 코드
+
+    ```typescript
+    import { withFilter } from "graphql-yoga";
+    import User from "../../../entities/User";
+    
+    const resolvers = {
+      Subscription: {
+        NearbyRideSubscription: {
+          subscribe: withFilter(
+            (_, __, { pubSub }) => pubSub.asyncIterator("rideRequest"),
+            (payload, _, { context }) => {
+              const user: User = context.currentUser;
+              const {
+                NearbyRideSubscription: { pickUpLat, pickUpLng },
+              } = payload;
+              const { lastLat: userLastLat, lastLng: userLastLng } = user;
+              return (
+                pickUpLat >= userLastLat - 0.05 &&
+                pickUpLat <= userLastLat + 0.05 &&
+                pickUpLng >= userLastLng - 0.05 &&
+                pickUpLng <= userLastLng + 0.05
+              );
+            }
+          ),
+        },
+      },
+    };
+    
+    export default resolvers;
+    ```
+
+## 2.74 Testing the NearbyRideSubscription
+
+- RequestRide resolver 수정
+
+  - 현재 차에 타있지 않은 user만 request 할 수 있도록
+  - ride request 생성한 후에 `isRiding`을 true로 바꿔서 한 번에 하나의 request만 가능하도록
+
+  ```typescript
+  if (!user.isRiding) {
+    try {
+      const ride = await Ride.create({ ...args, passenger: user }).save();
+      pubSub.publish("rideRequest", { NearbyRideSubscription: ride });
+      user.isRiding = true;
+      user.save();
+      return {
+        ok: true,
+        error: null,
+        ride,
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        error: error.message,
+        ride: null,
+      };
+    }
+  } else {
+    return {
+      ok: false,
+      error: "You can't request two rides",
+      ride: null,
+      };
+    }
+  }
+  ```
+
+  
