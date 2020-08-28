@@ -40,9 +40,9 @@
 - [x] Get Ride
 - [x] Subscribe to Ride Status
 - [x] Create a Chat Room
-- [ ] Get Chat Room Messages
-- [ ] Subscribe to Chat Room Messages
+- [x] Get Chat Room Messages
 - [ ] Send a Chat Message
+- [ ] Subscribe to Chat Room Messages
 
 ## Code Challenge
 
@@ -3704,3 +3704,91 @@
 
 ## 2.84 SendChatMessage Resolver
 
+- SendChatMessage.graphql
+
+  ```
+  type SendChatMessageResponse {
+    ok: Boolean!
+    error: String
+    message: Message
+  }
+  
+  type Mutation {
+    SendChatMessage(text: String!, chatId: Int!): SendChatMessageResponse!
+  }
+  ```
+
+- SendChatMessage resolver
+
+  - 흐름
+
+    - args의 chatId에 해당하는 Chat 인스턴스를 찾음
+    - 찾았다면, 해당 Chat 인스턴스의 passengerId 나 driverId 중 user의 id 와 동일한 것이 있는 지 확인 (현재 Chat에 참여중인지)
+    - 동일한 것이 있다면 Message 인스턴스 생성 후 저장
+
+  - 코드
+
+    ```typescript
+    import { Resolvers } from "../../../types/resolvers";
+    import privateResolver from "../../../utils/privateResolver";
+    import {
+      SendChatMessageMutationArgs,
+      SendChatMessageResponse,
+    } from "../../../types/graph";
+    import User from "../../../entities/User";
+    import Message from "../../../entities/Message";
+    import Chat from "../../../entities/Chat";
+    
+    const resolvers: Resolvers = {
+      Mutation: {
+        SendChatMessage: privateResolver(
+          async (
+            _,
+            args: SendChatMessageMutationArgs,
+            { req }
+          ): Promise<SendChatMessageResponse> => {
+            const user: User = req.user;
+            try {
+              const chat = await Chat.findOne({ id: args.chatId });
+              if (chat) {
+                if (chat.passengerId === user.id || chat.driverId === user.id) {
+                  const message = await Message.create({
+                    text: args.text,
+                    chat,
+                    user,
+                  }).save();
+                  return {
+                    ok: true,
+                    error: null,
+                    message,
+                  };
+                } else {
+                  return {
+                    ok: false,
+                    error: "Not authorized",
+                    message: null,
+                  };
+                }
+              } else {
+                return {
+                  ok: false,
+                  error: "Chat not found",
+                  message: null,
+                };
+              }
+            } catch (error) {
+              return {
+                ok: false,
+                error: error.message,
+                message: null,
+              };
+            }
+          }
+        ),
+      },
+    };
+    
+    export default resolvers;
+    ```
+
+    
