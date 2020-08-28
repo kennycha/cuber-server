@@ -3368,12 +3368,116 @@
 
   - 흐름
 
-    - ㅇ
+    - args.rideId로 Ride 인스턴스를 찾음
+    - 찾았다면, 현재 요청을 보낸 user가 해당 Ride 인스턴스에 대한 권한이 있는지 확인
+      - 즉, 해당 Ride의 driver 혹은 passenger인지 확인
 
   - 코드
 
     ```typescript
+    import { Resolvers } from "../../../types/resolvers";
+    import privateResolver from "../../../utils/privateResolver";
+    import User from "../../../entities/User";
+    import { GetRideQueryArgs, GetRideResponse } from "../../../types/graph";
+    import Ride from "../../../entities/Ride";
     
+    const resolvers: Resolvers = {
+      Query: {
+        GetRide: privateResolver(
+          async (_, args: GetRideQueryArgs, { req }): Promise<GetRideResponse> => {
+            const user: User = req.user;
+            try {
+              const ride = await Ride.findOne({
+                id: args.rideId,
+              });
+              if (ride) {
+                if (ride.passengerId === user.id || ride.driverId === user.id) {
+                  return {
+                    ok: true,
+                    error: null,
+                    ride,
+                  };
+                } else {
+                  return {
+                    ok: false,
+                    error: "Not authorized",
+                    ride: null,
+                  };
+                }
+              } else {
+                return {
+                  ok: false,
+                  error: "Ride not found",
+                  ride: null,
+                };
+              }
+            } catch (error) {
+              return {
+                ok: false,
+                error: error.message,
+                ride: null,
+              };
+            }
+          }
+        ),
+      },
+    };
+    
+    export default resolvers;
     ```
 
+## 2.78 RideStatusSubscription
+
+- RideStatusSubscription.graphql
+
+  ```
+  type Subscription {
+    RideStatusSubscription: Ride
+  }
+  ```
+
+- UpdateRideStatus resolver 변경
+
+  - Ride 인스턴스의 status 변경 후 `rideUpdate` 채널로 해당 ride를 payload에 담아서 publish
+
+    ```typescript
+    ride.status = args.status;
+    ride.save();
+    pubSub.publish("rideUpdate", { RideStatusSubscription: ride });
+    ```
+
+- RideStatusSubscription resolver
+
+  - 흐름
+
+    - `rideUpdate` 채널을 주시하고 있다가, `withFilter` 를 통해 현재 user가 driver 혹은 passenger인 Ride 인스턴스의 알림을 받아 옴
+
+  - 코드
+
+    ```typescript
+    import { withFilter } from "graphql-yoga";
+    import User from "../../../entities/User";
     
+    const resolvers = {
+      Subscription: {
+        RideStatusSubscription: {
+          subscribe: withFilter(
+            (_, __, { pubSub }) => pubSub.asyncIterator("rideUpdate"),
+            (payload, _, { context }) => {
+              const user: User = context.currentUser;
+              const {
+                RideStatusSubscription: { driverId, passengerId },
+              } = payload;
+              return user.id === driverId || user.id === passengerId;
+            }
+          ),
+        },
+      },
+    };
+    
+    export default resolvers;
+    ```
+
+## 2.79 Testing the RideStatusSubscription
+
+- 
