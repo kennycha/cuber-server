@@ -3290,4 +3290,90 @@
     export default resolvers;
     ```
 
+
+## 2.77 GetRide Resolver
+
+- GetRide.graphql
+
+  ```
+  type GetRideResponse {
+    ok: Boolean!
+    error: String
+    ride: Ride
+  }
+  
+  type Query {
+    GetRide(rideId: Int!): GetRideResponse!
+  }
+  ```
+
+- typeorm findOne 활용
+
+  - Ride 인스턴스의 passenger.id와 driver.id가 필요한 경우
+
+  - `relations` 옵션을 통해 `ManyToOne` Column에 속하는 passenger나 driver를 함께 불러올 수도 있지만,  passenger/ driver에 해당하는 user 객체 전체를 가져오기 때문에 비효율
+
+    ```typescript
+    // GetRide.resolvers.ts
+    
+    const ride = await Ride.findOne(
+        { id: args.rideId }, 
+        { relations: ["passenger", "driver"]}
+    )
+    ```
+
+  - typeorm은 `relations column`에 해당하는 entity에 대해 특별한 기능을 제공
+
+    - ex) passenger column의 id를 가져오려고 할때, 객체를 가져온 후 `.id`로 받아오는 대신, Ride 인스턴스에 `passengerId` column을 추가
+
+      ```typescript
+      // Ride.ts
+      
+      @Entity()
+      class Ride extends BaseEntity {
+        // ...
+        
+        @Column({ nullable: true })
+        passengerId: number;
+      
+        @ManyToOne((type) => User, (user) => user.ridesAsPassenger)
+        passenger: User;
+      
+        @Column({ nullable: true })
+        driverId: number;
+      
+        @ManyToOne((type) => User, (user) => user.ridesAsDriver, { nullable: true })
+        driver: User;
+      }
+      export default Ride;
+      ```
+
+      ```
+      // Ride.graphql
+      
+      type Ride {
+        // ...
+        passengerId: Int!
+        passenger: User!
+        driverId: Int
+        driver: User
+      }
+      ```
+
+    - 추가 설정없이 `passengerId` 라는 nullable column을 추가하면, typeorm에서 자동으로 passenger의 id와 연결
+
+    - Ride를 불러와 `passengerId` column을 사용
+
+- GetRide resolver
+
+  - 흐름
+
+    - ㅇ
+
+  - 코드
+
+    ```typescript
+    
+    ```
+
     
