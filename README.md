@@ -3791,4 +3791,72 @@
     export default resolvers;
     ```
 
+## 2.85 MessageSubscription
+
+- MessageSubscription.graphql
+
+  ```
+  type Subscription {
+    MessageSubscription: Message
+  }
+  ```
+
+- MessageSubscription resolver
+
+  - 흐름
+
+    - payload의 message의 chatId를 가진 Chat 인스턴스를 찾음
+    - 있다면, 현재 user가 해당 Chat 인스턴스의 driver 혹은 passenger인지 확인하여 필터링
+
+  - 코드
+
+    ```typescript
+    import { withFilter } from "graphql-yoga";
+    import User from "../../../entities/User";
+    import Chat from "../../../entities/Chat";
+    
+    const resolvers = {
+      Subscription: {
+        MessageSubscription: {
+          subcribe: withFilter(
+            (_, __, { pubSub }) => pubSub.asyncIterator("newChatMessage"),
+            async (payload, _, { context }) => {
+              const user: User = context.currentUser;
+              const {
+                MessageSubscription: { chatId },
+              } = payload;
+              try {
+                const chat = await Chat.findOne({ id: chatId });
+                if (chat) {
+                  return chat.driverId === user.id || chat.passengerId === user.id;
+                } else {
+                  return false;
+                }
+              } catch (error) {
+                return false;
+              }
+            }
+          ),
+        },
+      },
+    };
+    
+    export default resolvers;
+    ```
+
+- SendChatMessage resolver 변경
+
+  - message 생성 저장 후, "newChatMessage" 채널로 payload에 message를 담아 전송
+
+    ```typescript
+    const message = await Message.create({
+      text: args.text,
+      chat,
+      user,
+    }).save();
+    pubSub.publish("newChatMessage", {
+      MessageSubscription: message,
+    });
+    ```
+
     
