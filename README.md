@@ -36,9 +36,10 @@
 - [x] Request a Ride
 - [x] Get Nearby Ride Requests
 - [x] Subscribe to Nearby Ride Requests
-- [ ] Update Ride Status
-- [ ] Get Ride
-- [ ] Subscribe to Ride Status
+- [x] Update Ride Status
+- [x] Get Ride
+- [x] Subscribe to Ride Status
+- [ ] Create a Chat Room
 - [ ] Get Chat Room Messages
 - [ ] Subscribe to Chat Room Messages
 - [ ] Send a Chat Message
@@ -3480,4 +3481,72 @@
 
 ## 2.79 Testing the RideStatusSubscription
 
-- 
+## 2.80 Creating a ChatRoom
+
+- Chat.ts 변경
+
+  - participants를 `passenger`와 `driver`로 구분
+
+    ```typescript
+    // Chat.ts
+    
+    @Column({ nullable: true })
+    passengerId: number;
+    
+    @ManyToOne((type) => User, (user) => user.chatsAsPassenger)
+    passenger: User;
+    
+    @Column({ nullable: true })
+    driverId: number;
+    
+    @ManyToOne((type) => User, (user) => user.chatsAsRider)
+    driver: User;
+    ```
+
+- User.ts 변경
+
+  - chat를 `chatsAsPassenger`와 `chatsAsDriver`로 구분
+
+    ```typescript
+    // User.ts
+    
+    @OneToMany((type) => Chat, (chat) => chat.passenger)
+    chatsAsPassenger: Chat[];
+    
+    @OneToMany((type) => Chat, (chat) => chat.driver)
+    chatsAsDriver: Chat[];
+    ```
+
+- UpdateRideStatus resolver 수정
+
+  - 흐름
+
+    - driver가 request를 수락할 때 (Ride의 상태를 'REQUESTING'에서 'ACCEPTED'로 바꿀 때) chatroom을 생성
+    - 이때 driver에는 현재 request를 보내는 user를, passenger에는 Ride 인스턴스 생성 시 입력된 passenger를 할당
+      - ride.passenger를 참조하기 위해서는, findOne 으로 불러올 때, relations 옵션을 통해 함께 불러와야 함
+
+  - 코드
+
+    ```typescript
+    // UpdateRideStatus.resolvers.ts
+    
+    if (args.status === "ACCEPTED") {
+      ride = await Ride.findOne(
+        {
+          id: args.rideId,
+          status: "REQUESTING",
+        },
+        { relations: ["passenger"] }
+      );
+      if (ride) {
+        ride.driver = user;
+        user.isTaken = true;
+        user.save();
+        await Chat.create({
+          driver: user,
+          passenger: ride.passenger,
+        }).save();
+      }
+    }
+    ```
+
