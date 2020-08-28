@@ -39,7 +39,7 @@
 - [x] Update Ride Status
 - [x] Get Ride
 - [x] Subscribe to Ride Status
-- [ ] Create a Chat Room
+- [x] Create a Chat Room
 - [ ] Get Chat Room Messages
 - [ ] Subscribe to Chat Room Messages
 - [ ] Send a Chat Message
@@ -3503,6 +3503,10 @@
     driver: User;
     ```
 
+  - 이때, Chat.graphql 또한 변경 필요
+
+    - participants 대신 passengerId, passenger, driverId, driver
+
 - User.ts 변경
 
   - chat를 `chatsAsPassenger`와 `chatsAsDriver`로 구분
@@ -3516,6 +3520,8 @@
     @OneToMany((type) => Chat, (chat) => chat.driver)
     chatsAsDriver: Chat[];
     ```
+
+    - 이때, User.graphql 또한 변경 필요
 
 - UpdateRideStatus resolver 수정
 
@@ -3549,4 +3555,152 @@
       }
     }
     ```
+
+## 2.81 GetChat Resolver
+
+- GetChat.graphql
+
+  ```
+  type GetChatResponse {
+    ok: Boolean!
+    error: String
+    chat: Chat
+  }
+  
+  type Query {
+    GetChat(chatId: Int!): GetChatResponse!
+  }
+  ```
+
+- GetChat resolver
+
+  - 흐름
+
+    - chatId로 Chat 인스턴스를 찾음
+    - 찾았다면, Chat의 passenger나 driver에 현재 request를 보낸 user가 해당하는지 확인
+    - 해당한다면 chat을 return
+
+  - 코드
+
+    ```typescript
+    import { Resolvers } from "../../../types/resolvers";
+    import privateResolver from "../../../utils/privateResolver";
+    import User from "../../../entities/User";
+    import { GetChatResponse, GetChatQueryArgs } from "../../../types/graph";
+    import Chat from "../../../entities/Chat";
+    
+    const resolvers: Resolvers = {
+      Query: {
+        GetChat: privateResolver(
+          async (_, args: GetChatQueryArgs, { req }): Promise<GetChatResponse> => {
+            const user: User = req.user;
+            try {
+              const chat = await Chat.findOne({
+                id: args.chatId,
+              });
+              if (chat) {
+                if (chat.passengerId === user.id || chat.driverId === user.id) {
+                  return {
+                    ok: true,
+                    error: null,
+                    chat,
+                  };
+                } else {
+                  return {
+                    ok: false,
+                    error: "Not authorized",
+                    chat: null,
+                  };
+                }
+              } else {
+                return {
+                  ok: false,
+                  error: "Not found",
+                  chat: null,
+                };
+              }
+            } catch (error) {
+              return {
+                ok: false,
+                error: error.message,
+                chat: null,
+              };
+            }
+          }
+        ),
+      },
+    };
+    
+    export default resolvers;
+    ```
+
+- OneToOne relations
+
+  - [typeorm|OneToOne relations](https://orkhan.gitbook.io/typeorm/docs/one-to-one-relations)
+
+  - Chat entity와 Ride entity 사이에 relation 설정
+
+  - 양 entity에 OneToOne column을 추가하되, 관계의 owner에 해당하는 Ride에는 `@JoinColumn()` 을 추가로 적어줘야 한다
+
+    - Ride가 생성된 후에, 새로운 Chat 이 생성될 수 있으며 여기에 귀속되기 때문
+      - Ride가 'REQUESTING' 상태일 때는 Chat이 없기에 `nullable` column 설정
+    - join에 있어 기준이 되는 쪽에 작성
+
+    ```typescript
+    // Chat.ts
+    
+    @Column({ nullable: true })
+    rideId: number;
+    
+    @OneToOne((type) => Ride, (ride) => ride.chat)
+    ride: Ride;
+    ```
+
+    ```typescript
+    // Ride.ts
+    
+    @Column({ nullable: true })
+    chatId: number;
+    
+    @OneToOne((type) => Chat, (chat) => chat.ride, { nullable: true })
+    @JoinColumn()
+    chat: Chat;
+    ```
+
+  - 이때 Chat.graphql과 Ride.graphql 또한 변경 필요
+
+- UpdateRideStatus resolver 변경
+
+  - ride status를 "ACCEPTED"로 바꿨을 때 (ride request를 승낙했을 때), Chat 인스턴스를 생성한 후 해당 Ride 인스턴스에 등록
+
+    ```typescript
+    // UpdateRideStatus.resolvers.ts
+    
+    if (args.status === "ACCEPTED") {
+      ride = await Ride.findOne(
+        {
+          id: args.rideId,
+          status: "REQUESTING",
+        },
+        { relations: ["passenger"] }
+      );
+      if (ride) {
+        ride.driver = user;
+        user.isTaken = true;
+        user.save();
+        const chat = await Chat.create({
+          driver: user,
+          passenger: ride.passenger,
+        }).save();
+        ride.chat = chat;
+        ride.save();
+      }
+    }
+    ```
+
+## 2.82 BugFixing
+
+## 2.83 Testing GetChat Resolver
+
+## 2.84 SendChatMessage Resolver
 
